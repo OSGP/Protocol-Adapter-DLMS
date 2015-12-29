@@ -2,7 +2,7 @@
 
 ### Build Status
 
-[![Build Status](http://54.77.62.182/job/OSGP_Protocol-Adapter-DLMS_development/badge/icon?style=plastic)](http://54.77.62.182/job/OSGP_Protocol-Adapter-DLMS_development)
+[![Build Status](http://54.77.62.182/job/OSGP_Protocol-Adapter-DLMS_master/badge/icon?style=plastic)](http://54.77.62.182/job/OSGP_Protocol-Adapter-DLMS_master)
 
 ### Component Description
 
