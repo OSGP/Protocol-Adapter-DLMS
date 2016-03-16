@@ -12,11 +12,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.openmuc.jdlms.AccessResultCode;
-import org.openmuc.jdlms.ClientConnection;
-import org.openmuc.jdlms.DataObject;
+import org.openmuc.jdlms.AttributeAddress;
+import org.openmuc.jdlms.LnClientConnection;
 import org.openmuc.jdlms.ObisCode;
-import org.openmuc.jdlms.RequestParameterFactory;
-import org.openmuc.jdlms.SetRequestParameter;
+import org.openmuc.jdlms.SetParameter;
+import org.openmuc.jdlms.datatypes.DataObject;
+import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -34,14 +36,14 @@ public class SetSpecialDaysCommandExecutor implements CommandExecutor<List<Speci
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public AccessResultCode execute(final ClientConnection conn, final List<SpecialDay> specialDays)
-            throws IOException, ProtocolAdapterException {
+    public AccessResultCode execute(final LnClientConnection conn, final DlmsDevice device,
+            final List<SpecialDay> specialDays) throws ProtocolAdapterException {
 
-        final ArrayList<DataObject> specialDayEntries = new ArrayList<DataObject>();
+        final List<DataObject> specialDayEntries = new ArrayList<DataObject>();
         int i = 0;
         for (final SpecialDay specialDay : specialDays) {
 
-            final ArrayList<DataObject> specDayEntry = new ArrayList<DataObject>();
+            final List<DataObject> specDayEntry = new ArrayList<DataObject>();
             specDayEntry.add(DataObject.newUInteger16Data(i));
             specDayEntry.add(this.dlmsHelperService.dateStringToOctetString(specialDay.getSpecialDayDate()));
             specDayEntry.add(DataObject.newUInteger8Data((short) specialDay.getDayId()));
@@ -51,12 +53,16 @@ public class SetSpecialDaysCommandExecutor implements CommandExecutor<List<Speci
             i += 1;
         }
 
-        final DataObject arrayData = DataObject.newArrayData(specialDayEntries);
+        final AttributeAddress specialDaysTableEntries = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
+        final DataObject entries = DataObject.newArrayData(specialDayEntries);
 
-        final RequestParameterFactory factory = new RequestParameterFactory(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
-        final SetRequestParameter request = factory.createSetRequestParameter(arrayData);
+        final SetParameter request = new SetParameter(specialDaysTableEntries, entries);
 
-        return conn.set(request).get(0);
+        try {
+            return conn.set(request).get(0);
+        } catch (final IOException e) {
+            throw new ConnectionException(e);
+        }
     }
 
 }

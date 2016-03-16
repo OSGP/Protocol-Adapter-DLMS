@@ -10,33 +10,38 @@ package org.osgp.adapter.protocol.dlms.domain.commands;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
-import org.openmuc.jdlms.AccessResultCode;
-import org.openmuc.jdlms.ClientConnection;
-import org.openmuc.jdlms.DataObject;
-import org.openmuc.jdlms.GetRequestParameter;
+import org.openmuc.jdlms.AttributeAddress;
 import org.openmuc.jdlms.GetResult;
+import org.openmuc.jdlms.LnClientConnection;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.SelectiveAccessDescription;
+import org.openmuc.jdlms.datatypes.DataObject;
+import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.alliander.osgp.dto.valueobjects.smartmetering.AmrProfileStatusCode;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AmrProfileStatusCodeFlag;
+import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodType;
-import com.alliander.osgp.dto.valueobjects.smartmetering.MeterReads;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReads;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsContainer;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsQuery;
 
 @Component()
-public class GetPeriodicMeterReadsCommandExecutor implements
-        CommandExecutor<PeriodicMeterReadsQuery, PeriodicMeterReadsContainer> {
+public class GetPeriodicMeterReadsCommandExecutor extends
+AbstractMeterReadsScalerUnitCommandExecutor<PeriodicMeterReadsQuery, PeriodicMeterReadsContainer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetPeriodicMeterReadsCommandExecutor.class);
 
@@ -46,18 +51,10 @@ public class GetPeriodicMeterReadsCommandExecutor implements
     private static final ObisCode OBIS_CODE_MONTHLY_BILLING = new ObisCode("0.0.98.1.0.255");
     private static final byte ATTRIBUTE_ID_BUFFER = 2;
 
-    private static final int CLASS_ID_CLOCK = 8;
-    private static final byte[] OBIS_BYTES_CLOCK = new byte[] { 0, 0, 1, 0, 0, (byte) 255 };
-    private static final byte ATTRIBUTE_ID_TIME = 2;
-
-    private static final int CLASS_ID_DATA = 1;
-    private static final byte[] OBIS_BYTES_AMR_PROFILE_STATUS = new byte[] { 0, 0, 96, 10, 2, (byte) 255 };
-
     private static final int CLASS_ID_REGISTER = 3;
-    private static final byte[] OBIS_BYTES_ACTIVE_ENERGY_IMPORT = new byte[] { 1, 0, 1, 8, 0, (byte) 255 };
+
     private static final byte[] OBIS_BYTES_ACTIVE_ENERGY_IMPORT_RATE_1 = new byte[] { 1, 0, 1, 8, 1, (byte) 255 };
     private static final byte[] OBIS_BYTES_ACTIVE_ENERGY_IMPORT_RATE_2 = new byte[] { 1, 0, 1, 8, 2, (byte) 255 };
-    private static final byte[] OBIS_BYTES_ACTIVE_ENERGY_EXPORT = new byte[] { 1, 0, 2, 8, 0, (byte) 255 };
     private static final byte[] OBIS_BYTES_ACTIVE_ENERGY_EXPORT_RATE_1 = new byte[] { 1, 0, 2, 8, 1, (byte) 255 };
     private static final byte[] OBIS_BYTES_ACTIVE_ENERGY_EXPORT_RATE_2 = new byte[] { 1, 0, 2, 8, 2, (byte) 255 };
     private static final byte ATTRIBUTE_ID_VALUE = 2;
@@ -76,9 +73,12 @@ public class GetPeriodicMeterReadsCommandExecutor implements
     @Autowired
     private DlmsHelperService dlmsHelperService;
 
+    @Autowired
+    private AmrProfileStatusCodeHelperService amrProfileStatusCodeHelperService;
+
     @Override
-    public PeriodicMeterReadsContainer execute(final ClientConnection conn,
-            final PeriodicMeterReadsQuery periodicMeterReadsRequest) throws IOException, ProtocolAdapterException {
+    public PeriodicMeterReadsContainer execute(final LnClientConnection conn, final DlmsDevice device,
+            final PeriodicMeterReadsQuery periodicMeterReadsRequest) throws ProtocolAdapterException {
 
         final PeriodType periodType;
         final DateTime beginDateTime;
@@ -92,30 +92,32 @@ public class GetPeriodicMeterReadsCommandExecutor implements
                     "PeriodicMeterReadsRequestData should contain PeriodType, BeginDate and EndDate.");
         }
 
-        final GetRequestParameter profileBuffer = this.getProfileBuffer(periodType);
-        final SelectiveAccessDescription selectiveAccessDescription = this.getSelectiveAccessDescription(periodType,
-                beginDateTime, endDateTime);
-        profileBuffer.setAccessSelection(selectiveAccessDescription);
+        final AttributeAddress profileBuffer = this.getProfileBuffer(periodType, beginDateTime, endDateTime,
+                device.isSelectiveAccessSupported());
 
-        LOGGER.debug(
-                "Retrieving current billing period and profiles for class id: {}, obis code: {}, attribute id: {}",
-                profileBuffer.classId(), profileBuffer.obisCode(), profileBuffer.attributeId());
-        if (selectiveAccessDescription != null) {
-            LOGGER.debug("Selective access: selector=" + selectiveAccessDescription.accessSelector() + ", parameter="
-                    + this.dlmsHelperService.getDebugInfo(selectiveAccessDescription.accessParameter()));
+        LOGGER.debug("Retrieving current billing period and profiles for period type: {}, from: {}, to: {}",
+                periodType, beginDateTime, endDateTime);
+
+        /*
+         * workaround for a problem when using with_list and retrieving a
+         * profile buffer, this will be returned erroneously:
+         * 
+         * 1 an empty list 2 the profile buffer 3 a null value 4 the scaler unit
+         */
+        final List<GetResult> getResultList = new ArrayList<GetResult>(2);
+        try {
+            getResultList.addAll(this.dlmsHelperService.getWithList(conn, device, profileBuffer));
+            getResultList.addAll(conn.get(this.getScalerUnitAttributeAddress(periodicMeterReadsRequest)));
+        } catch (IOException | TimeoutException e) {
+            throw new ConnectionException(e);
         }
-
-        final List<GetResult> getResultList = conn.get(profileBuffer);
 
         checkResultList(getResultList);
 
-        final List<MeterReads> periodicMeterReads = new ArrayList<>();
+        final List<PeriodicMeterReads> periodicMeterReads = new ArrayList<>();
 
-        final GetResult getResult = getResultList.get(0);
-        final AccessResultCode resultCode = getResult.resultCode();
-        LOGGER.debug("AccessResultCode: {}({})", resultCode.name(), resultCode.value());
-        final DataObject resultData = getResult.resultData();
-        LOGGER.debug(this.dlmsHelperService.getDebugInfo(resultData));
+        final DataObject resultData = this.dlmsHelperService.readDataObject(getResultList.get(0),
+                "Periodic E-Meter Reads");
         final List<DataObject> bufferedObjectsList = resultData.value();
 
         for (final DataObject bufferedObject : bufferedObjectsList) {
@@ -123,16 +125,25 @@ public class GetPeriodicMeterReadsCommandExecutor implements
             this.processNextPeriodicMeterReads(periodType, beginDateTime, endDateTime, periodicMeterReads,
                     bufferedObjects);
         }
+        final DataObject scalerUnit = this.dlmsHelperService.readDataObject(getResultList.get(1), "Scaler and Unit");
 
-        return new PeriodicMeterReadsContainer(periodType, periodicMeterReads);
+        return new PeriodicMeterReadsContainer(periodType, periodicMeterReads, this.convert(scalerUnit));
     }
 
     private void processNextPeriodicMeterReads(final PeriodType periodType, final DateTime beginDateTime,
-            final DateTime endDateTime, final List<MeterReads> periodicMeterReads,
-            final List<DataObject> bufferedObjects) {
+            final DateTime endDateTime, final List<PeriodicMeterReads> periodicMeterReads,
+            final List<DataObject> bufferedObjects) throws ProtocolAdapterException {
 
         final DataObject clock = bufferedObjects.get(BUFFER_INDEX_CLOCK);
-        final DateTime bufferedDateTime = this.dlmsHelperService.fromDateTimeValue((byte[]) clock.value());
+        final CosemDateTime cosemDateTime = this.dlmsHelperService.fromDateTimeValue((byte[]) clock.value());
+        final DateTime bufferedDateTime = cosemDateTime.asDateTime();
+        if (bufferedDateTime == null) {
+            final DateTimeFormatter dtf = ISODateTimeFormat.dateTime();
+            LOGGER.warn("Not using an object from capture buffer (clock=" + cosemDateTime.toString()
+                    + "), because the date does not match the given period, since it is not fully specified: ["
+                    + dtf.print(beginDateTime) + " .. " + dtf.print(endDateTime) + "].");
+            return;
+        }
         if (bufferedDateTime.isBefore(beginDateTime) || bufferedDateTime.isAfter(endDateTime)) {
             final DateTimeFormatter dtf = ISODateTimeFormat.dateTime();
             LOGGER.warn("Not using an object from capture buffer (clock=" + dtf.print(bufferedDateTime)
@@ -159,71 +170,87 @@ public class GetPeriodicMeterReadsCommandExecutor implements
         }
     }
 
-    private void processNextPeriodicMeterReadsForInterval(final List<MeterReads> periodicMeterReads,
-            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime) {
+    private void processNextPeriodicMeterReadsForInterval(final List<PeriodicMeterReads> periodicMeterReads,
+            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime) throws ProtocolAdapterException {
 
-        final DataObject amrStatus = bufferedObjects.get(BUFFER_INDEX_AMR_STATUS);
-        LOGGER.warn("TODO - handle amrStatus ({})", this.dlmsHelperService.getDebugInfo(amrStatus));
+        final AmrProfileStatusCode amrProfileStatusCode = this.readAmrProfileStatusCode(bufferedObjects
+                .get(BUFFER_INDEX_AMR_STATUS));
 
-        final DataObject positiveActiveEnergy = bufferedObjects.get(BUFFER_INDEX_A_POS);
-        LOGGER.debug("positiveActiveEnergy: {}", this.dlmsHelperService.getDebugInfo(positiveActiveEnergy));
+        final Long positiveActiveEnergy = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_POS), "positiveActiveEnergy");
+        final Long negativeActiveEnergy = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_NEG), "negativeActiveEnergy");
 
-        final DataObject negativeActiveEnergy = bufferedObjects.get(BUFFER_INDEX_A_NEG);
-        LOGGER.debug("negativeActiveEnergy: {}", this.dlmsHelperService.getDebugInfo(negativeActiveEnergy));
-
-        final MeterReads nextMeterReads = new MeterReads(bufferedDateTime.toDate(),
-                (Long) positiveActiveEnergy.value(), null, (Long) negativeActiveEnergy.value(), null);
+        final PeriodicMeterReads nextMeterReads = new PeriodicMeterReads(bufferedDateTime.toDate(),
+                positiveActiveEnergy, negativeActiveEnergy, amrProfileStatusCode);
         periodicMeterReads.add(nextMeterReads);
     }
 
-    private void processNextPeriodicMeterReadsForDaily(final List<MeterReads> periodicMeterReads,
-            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime) {
+    private void processNextPeriodicMeterReadsForDaily(final List<PeriodicMeterReads> periodicMeterReads,
+            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime) throws ProtocolAdapterException {
 
-        final DataObject amrStatus = bufferedObjects.get(BUFFER_INDEX_AMR_STATUS);
-        LOGGER.warn("TODO - handle amrStatus ({})", this.dlmsHelperService.getDebugInfo(amrStatus));
+        final AmrProfileStatusCode amrProfileStatusCode = this.readAmrProfileStatusCode(bufferedObjects
+                .get(BUFFER_INDEX_AMR_STATUS));
 
-        final DataObject positiveActiveEnergyTariff1 = bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_1);
-        LOGGER.debug("positiveActiveEnergyTariff1: {}",
-                this.dlmsHelperService.getDebugInfo(positiveActiveEnergyTariff1));
-        final DataObject positiveActiveEnergyTariff2 = bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_2);
-        LOGGER.debug("positiveActiveEnergyTariff2: {}",
-                this.dlmsHelperService.getDebugInfo(positiveActiveEnergyTariff2));
-        final DataObject negativeActiveEnergyTariff1 = bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_1);
-        LOGGER.debug("negativeActiveEnergyTariff1: {}",
-                this.dlmsHelperService.getDebugInfo(negativeActiveEnergyTariff1));
-        final DataObject negativeActiveEnergyTariff2 = bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_2);
-        LOGGER.debug("negativeActiveEnergyTariff2: {}",
-                this.dlmsHelperService.getDebugInfo(negativeActiveEnergyTariff2));
+        final Long positiveActiveEnergyTariff1 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_1), "positiveActiveEnergyTariff1");
+        final Long positiveActiveEnergyTariff2 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_2), "positiveActiveEnergyTariff2");
+        final Long negativeActiveEnergyTariff1 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_1), "negativeActiveEnergyTariff1");
+        final Long negativeActiveEnergyTariff2 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_2), "negativeActiveEnergyTariff2");
 
-        final MeterReads nextMeterReads = new MeterReads(bufferedDateTime.toDate(),
-                (Long) positiveActiveEnergyTariff1.value(), (Long) positiveActiveEnergyTariff2.value(),
-                (Long) negativeActiveEnergyTariff1.value(), (Long) negativeActiveEnergyTariff2.value());
+        final PeriodicMeterReads nextMeterReads = new PeriodicMeterReads(bufferedDateTime.toDate(),
+                positiveActiveEnergyTariff1, positiveActiveEnergyTariff2, negativeActiveEnergyTariff1,
+                negativeActiveEnergyTariff2, amrProfileStatusCode);
         periodicMeterReads.add(nextMeterReads);
     }
 
-    private void processNextPeriodicMeterReadsForMonthly(final List<MeterReads> periodicMeterReads,
-            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime) {
+    /**
+     * Reads AmrProfileStatusCode from DataObject holding a bitvalue in a
+     * numeric datatype.
+     *
+     * @param amrProfileStatusData
+     *            AMR profile register value.
+     * @return AmrProfileStatusCode object holding status enum values.
+     * @throws ProtocolAdapterException
+     *             on invalid register data.
+     */
+    private AmrProfileStatusCode readAmrProfileStatusCode(final DataObject amrProfileStatusData)
+            throws ProtocolAdapterException {
+        AmrProfileStatusCode amrProfileStatusCode = null;
+
+        if (!amrProfileStatusData.isNumber()) {
+            throw new ProtocolAdapterException("Could not read AMR profile register data. Invalid data type.");
+        }
+
+        final Set<AmrProfileStatusCodeFlag> flags = this.amrProfileStatusCodeHelperService
+                .toAmrProfileStatusCodeFlags((Number) amrProfileStatusData.value());
+        amrProfileStatusCode = new AmrProfileStatusCode(flags);
+
+        return amrProfileStatusCode;
+    }
+
+    private void processNextPeriodicMeterReadsForMonthly(final List<PeriodicMeterReads> periodicMeterReads,
+            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime) throws ProtocolAdapterException {
 
         /*
          * Buffer indexes minus one, since Monthly captured objects don't
          * include the AMR Profile status.
          */
-        final DataObject positiveActiveEnergyTariff1 = bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_1 - 1);
-        LOGGER.debug("positiveActiveEnergyTariff1: {}",
-                this.dlmsHelperService.getDebugInfo(positiveActiveEnergyTariff1));
-        final DataObject positiveActiveEnergyTariff2 = bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_2 - 1);
-        LOGGER.debug("positiveActiveEnergyTariff2: {}",
-                this.dlmsHelperService.getDebugInfo(positiveActiveEnergyTariff2));
-        final DataObject negativeActiveEnergyTariff1 = bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_1 - 1);
-        LOGGER.debug("negativeActiveEnergyTariff1: {}",
-                this.dlmsHelperService.getDebugInfo(negativeActiveEnergyTariff1));
-        final DataObject negativeActiveEnergyTariff2 = bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_2 - 1);
-        LOGGER.debug("negativeActiveEnergyTariff2: {}",
-                this.dlmsHelperService.getDebugInfo(negativeActiveEnergyTariff2));
+        final Long positiveActiveEnergyTariff1 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_1 - 1), "positiveActiveEnergyTariff1");
+        final Long positiveActiveEnergyTariff2 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_POS_RATE_2 - 1), "positiveActiveEnergyTariff2");
+        final Long negativeActiveEnergyTariff1 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_1 - 1), "negativeActiveEnergyTariff1");
+        final Long negativeActiveEnergyTariff2 = this.dlmsHelperService.readLongNotNull(
+                bufferedObjects.get(BUFFER_INDEX_A_NEG_RATE_2 - 1), "negativeActiveEnergyTariff2");
 
-        final MeterReads nextMeterReads = new MeterReads(bufferedDateTime.toDate(),
-                (Long) positiveActiveEnergyTariff1.value(), (Long) positiveActiveEnergyTariff2.value(),
-                (Long) negativeActiveEnergyTariff1.value(), (Long) negativeActiveEnergyTariff2.value());
+        final PeriodicMeterReads nextMeterReads = new PeriodicMeterReads(bufferedDateTime.toDate(),
+                positiveActiveEnergyTariff1, positiveActiveEnergyTariff2, negativeActiveEnergyTariff1,
+                negativeActiveEnergyTariff2);
         periodicMeterReads.add(nextMeterReads);
     }
 
@@ -233,27 +260,34 @@ public class GetPeriodicMeterReadsCommandExecutor implements
                     "No GetResult received while retrieving current billing period and profiles.");
         }
 
-        if (getResultList.size() > 1) {
-            LOGGER.info("Expected 1 GetResult while retrieving current billing period and profiles, got "
+        if (getResultList.size() > 2) {
+            LOGGER.info("Expected 2 GetResult while retrieving current billing period and profiles, got "
                     + getResultList.size());
         }
     }
 
-    private GetRequestParameter getProfileBuffer(final PeriodType periodType) throws ProtocolAdapterException {
-        GetRequestParameter profileBuffer;
+    private AttributeAddress getProfileBuffer(final PeriodType periodType, final DateTime beginDateTime,
+            final DateTime endDateTime, final boolean isSelectiveAccessSupported) throws ProtocolAdapterException {
 
+        SelectiveAccessDescription access = null;
+
+        if (isSelectiveAccessSupported) {
+            access = this.getSelectiveAccessDescription(periodType, beginDateTime, endDateTime);
+        }
+
+        final AttributeAddress profileBuffer;
         switch (periodType) {
         case INTERVAL:
-            profileBuffer = new GetRequestParameter(CLASS_ID_PROFILE_GENERIC, OBIS_CODE_INTERVAL_BILLING,
-                    ATTRIBUTE_ID_BUFFER);
+            profileBuffer = new AttributeAddress(CLASS_ID_PROFILE_GENERIC, OBIS_CODE_INTERVAL_BILLING,
+                    ATTRIBUTE_ID_BUFFER, access);
             break;
         case DAILY:
-            profileBuffer = new GetRequestParameter(CLASS_ID_PROFILE_GENERIC, OBIS_CODE_DAILY_BILLING,
-                    ATTRIBUTE_ID_BUFFER);
+            profileBuffer = new AttributeAddress(CLASS_ID_PROFILE_GENERIC, OBIS_CODE_DAILY_BILLING,
+                    ATTRIBUTE_ID_BUFFER, access);
             break;
         case MONTHLY:
-            profileBuffer = new GetRequestParameter(CLASS_ID_PROFILE_GENERIC, OBIS_CODE_MONTHLY_BILLING,
-                    ATTRIBUTE_ID_BUFFER);
+            profileBuffer = new AttributeAddress(CLASS_ID_PROFILE_GENERIC, OBIS_CODE_MONTHLY_BILLING,
+                    ATTRIBUTE_ID_BUFFER, access);
             break;
         default:
             throw new ProtocolAdapterException(String.format("periodtype %s not supported", periodType));
@@ -272,9 +306,7 @@ public class GetPeriodicMeterReadsCommandExecutor implements
          * value to determine which elements from the buffered array should be
          * retrieved.
          */
-        final DataObject clockDefinition = DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_CLOCK), DataObject.newOctetStringData(OBIS_BYTES_CLOCK),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_TIME), DataObject.newUInteger16Data(0)));
+        final DataObject clockDefinition = this.dlmsHelperService.getClockDefinition();
 
         final DataObject fromValue = this.dlmsHelperService.asDataObject(beginDateTime);
         final DataObject toValue = this.dlmsHelperService.asDataObject(endDateTime);
@@ -287,7 +319,8 @@ public class GetPeriodicMeterReadsCommandExecutor implements
 
         switch (periodType) {
         case INTERVAL:
-            this.addSelectedValuesForInterval(objectDefinitions);
+            // empty objectDefinitions is ok, since all values are applicable,
+            // hence selective access is not applicable
             break;
         case DAILY:
             this.addSelectedValuesForDaily(objectDefinitions);
@@ -299,55 +332,12 @@ public class GetPeriodicMeterReadsCommandExecutor implements
             throw new AssertionError("Unknown PeriodType: " + periodType);
         }
 
-        /*
-         * For properly limiting data retrieved from the meter selectedValues
-         * should be something like: DataObject.newArrayData(objectDefinitions);
-         */
-        LOGGER.warn("TODO - figure out how to set selectedValues to something like: "
-                + this.dlmsHelperService.getDebugInfo(DataObject.newArrayData(objectDefinitions)));
-        /*
-         * As long as specifying a subset of captured objects from the buffer
-         * through selectedValues does not work, retrieve all captured objects
-         * by setting selectedValues to an empty array.
-         */
-        final DataObject selectedValues = DataObject.newArrayData(Collections.<DataObject> emptyList());
+        final DataObject selectedValues = DataObject.newArrayData(objectDefinitions);
 
         final DataObject accessParameter = DataObject.newStructureData(Arrays.asList(clockDefinition, fromValue,
                 toValue, selectedValues));
 
         return new SelectiveAccessDescription(accessSelector, accessParameter);
-    }
-
-    private void addSelectedValuesForInterval(final List<DataObject> objectDefinitions) {
-        /*-
-         * Available objects in the profile buffer (1-0:99.1.0.255):
-         * {8,0-0:1.0.0.255,2,0}    -  clock
-         * {1,0-0:96.10.2.255,2,0}  -  AMR profile status
-         * {3,1-0:1.8.0.255,2,0}    -  Active energy import (+A)
-         * {3,1-0:2.8.0.255,2,0}    -  Active energy export (-A)
-         */
-
-        /*
-         * Do not include {8,0-0:1.0.0.255,2,0} - clock here, since it is
-         * already used as restricting object.
-         */
-
-        // {1,0-0:96.10.2.255,2,0} - AMR profile status
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(DataObject.newUInteger16Data(CLASS_ID_DATA),
-                DataObject.newOctetStringData(OBIS_BYTES_AMR_PROFILE_STATUS),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
-
-        // {3,1-0:1.8.0.255,2,0} - Active energy import (+A)
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_REGISTER),
-                DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_IMPORT),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
-
-        // {3,1-0:2.8.0.255,2,0} - Active energy export (-A)
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_REGISTER),
-                DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_EXPORT),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
     }
 
     private void addSelectedValuesForDaily(final List<DataObject> objectDefinitions) {
@@ -371,39 +361,15 @@ public class GetPeriodicMeterReadsCommandExecutor implements
          * {4,0-4.24.2.1.255,5,0}  -  M-Bus Master Value 1 Channel 4 Capture time
          */
 
-        /*
-         * Do not include {8,0-0:1.0.0.255,2,0} - clock here, since it is
-         * already used as restricting object.
-         */
+        objectDefinitions.add(this.dlmsHelperService.getClockDefinition());
 
-        // {1,0-0:96.10.2.255,2,0} - AMR profile status
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(DataObject.newUInteger16Data(CLASS_ID_DATA),
-                DataObject.newOctetStringData(OBIS_BYTES_AMR_PROFILE_STATUS),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
+        objectDefinitions.add(this.dlmsHelperService.getAMRProfileDefinition());
 
-        // {3,1-0:1.8.1.255,2,0} - Active energy import (+A) rate 1
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_REGISTER),
-                DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_IMPORT_RATE_1),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
+        this.addActiveEnergyImportRate1(objectDefinitions);
+        this.addActiveEnergyImportRate2(objectDefinitions);
 
-        // {3,1-0:1.8.2.255,2,0} - Active energy import (+A) rate 2
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_REGISTER),
-                DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_IMPORT_RATE_2),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
-
-        // {3,1-0:2.8.1.255,2,0} - Active energy export (-A) rate 1
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_REGISTER),
-                DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_EXPORT_RATE_1),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
-
-        // {3,1-0:2.8.2.255,2,0} - Active energy export (-A) rate 2
-        objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
-                DataObject.newUInteger16Data(CLASS_ID_REGISTER),
-                DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_EXPORT_RATE_2),
-                DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
+        this.addActiveEnergyExportRate1(objectDefinitions);
+        this.addActiveEnergyExportRate2(objectDefinitions);
     }
 
     private void addSelectedValuesForMonthly(final List<DataObject> objectDefinitions) {
@@ -426,33 +392,45 @@ public class GetPeriodicMeterReadsCommandExecutor implements
          * {4,0-4.24.2.1.255,5,0}  -  M-Bus Master Value 1 Channel 4 Capture time
          */
 
-        /*
-         * Do not include {8,0-0:1.0.0.255,2,0} - clock here, since it is
-         * already used as restricting object.
-         */
+        objectDefinitions.add(this.dlmsHelperService.getClockDefinition());
 
+        this.addActiveEnergyImportRate1(objectDefinitions);
+        this.addActiveEnergyImportRate2(objectDefinitions);
+
+        this.addActiveEnergyExportRate1(objectDefinitions);
+        this.addActiveEnergyExportRate2(objectDefinitions);
+    }
+
+    private void addActiveEnergyImportRate1(final List<DataObject> objectDefinitions) {
         // {3,1-0:1.8.1.255,2,0} - Active energy import (+A) rate 1
         objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
                 DataObject.newUInteger16Data(CLASS_ID_REGISTER),
                 DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_IMPORT_RATE_1),
                 DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
+    }
 
+    private void addActiveEnergyImportRate2(final List<DataObject> objectDefinitions) {
         // {3,1-0:1.8.2.255,2,0} - Active energy import (+A) rate 2
         objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
                 DataObject.newUInteger16Data(CLASS_ID_REGISTER),
                 DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_IMPORT_RATE_2),
                 DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
+    }
 
+    private void addActiveEnergyExportRate1(final List<DataObject> objectDefinitions) {
         // {3,1-0:2.8.1.255,2,0} - Active energy export (-A) rate 1
         objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
                 DataObject.newUInteger16Data(CLASS_ID_REGISTER),
                 DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_EXPORT_RATE_1),
                 DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
+    }
 
+    private void addActiveEnergyExportRate2(final List<DataObject> objectDefinitions) {
         // {3,1-0:2.8.2.255,2,0} - Active energy export (-A) rate 2
         objectDefinitions.add(DataObject.newStructureData(Arrays.asList(
                 DataObject.newUInteger16Data(CLASS_ID_REGISTER),
                 DataObject.newOctetStringData(OBIS_BYTES_ACTIVE_ENERGY_EXPORT_RATE_2),
                 DataObject.newInteger8Data(ATTRIBUTE_ID_VALUE), DataObject.newUInteger16Data(0))));
     }
+
 }

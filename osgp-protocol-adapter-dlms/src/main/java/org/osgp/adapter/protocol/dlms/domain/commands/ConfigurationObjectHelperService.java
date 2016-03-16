@@ -12,11 +12,9 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -35,7 +33,7 @@ public class ConfigurationObjectHelperService {
     private static final int NUMBER_OF_FLAG_BITS = 16;
 
     static {
-        final EnumMap<ConfigurationFlagType, Integer> map = new EnumMap<>(ConfigurationFlagType.class);
+        final Map<ConfigurationFlagType, Integer> map = new EnumMap<>(ConfigurationFlagType.class);
 
         map.put(ConfigurationFlagType.DISCOVER_ON_OPEN_COVER, 15);
         map.put(ConfigurationFlagType.DISCOVER_ON_POWER_ON, 14);
@@ -52,7 +50,7 @@ public class ConfigurationObjectHelperService {
         BIT_INDEX_PER_CONFIGURATION_FLAG_TYPE = Collections.unmodifiableMap(map);
 
         // Create a flipped version of the map.
-        final HashMap<Integer, ConfigurationFlagType> tempReversed = new HashMap<>();
+        final Map<Integer, ConfigurationFlagType> tempReversed = new HashMap<>();
         for (final Entry<ConfigurationFlagType, Integer> val : BIT_INDEX_PER_CONFIGURATION_FLAG_TYPE.entrySet()) {
             tempReversed.put(val.getValue(), val.getKey());
         }
@@ -73,28 +71,22 @@ public class ConfigurationObjectHelperService {
     }
 
     /**
-     * Create a set of configuration flag type objects representing the active
-     * bits in the register value.
+     * Create a list of unique configuration flag type objects representing the
+     * active bits in the register value.
      *
      * @param flagByteArray
      *            The byte array holding the flag bits.
      * @return List of active configuration flag type objects.
      */
     public List<ConfigurationFlag> toConfigurationFlags(final byte[] flagByteArray) {
-        final Set<ConfigurationFlag> configurationFlags = new HashSet<>();
-
-        this.toConfigurationFlags(flagByteArray, configurationFlags);
-
-        return new ArrayList<ConfigurationFlag>(configurationFlags);
-    }
-
-    private void toConfigurationFlags(final byte[] flagByteArray, final Set<ConfigurationFlag> configurationFlags) {
+        final List<ConfigurationFlag> configurationFlags = new ArrayList<>();
         final BitSet bitSet = BitSet
                 .valueOf(new long[] { ((flagByteArray[0] & 0xFF) << 8) + (flagByteArray[1] & 0xFF) });
         for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
             final ConfigurationFlagType configurationFlagType = CONFIGURATION_FLAG_TYPE_PER_BIT_INDEX.get(i);
             configurationFlags.add(new ConfigurationFlag(configurationFlagType, true));
         }
+        return configurationFlags;
     }
 
     /**

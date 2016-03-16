@@ -11,11 +11,14 @@ import java.io.IOException;
 
 import org.joda.time.DateTime;
 import org.openmuc.jdlms.AccessResultCode;
-import org.openmuc.jdlms.ClientConnection;
-import org.openmuc.jdlms.DataObject;
+import org.openmuc.jdlms.AttributeAddress;
+import org.openmuc.jdlms.LnClientConnection;
 import org.openmuc.jdlms.ObisCode;
-import org.openmuc.jdlms.RequestParameterFactory;
-import org.openmuc.jdlms.SetRequestParameter;
+import org.openmuc.jdlms.SetParameter;
+import org.openmuc.jdlms.datatypes.DataObject;
+import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
+import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -30,15 +33,19 @@ public class SynchronizeTimeCommandExecutor implements CommandExecutor<DataObjec
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public AccessResultCode execute(final ClientConnection conn, final DataObject object) throws IOException {
-        final RequestParameterFactory factory = new RequestParameterFactory(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
+    public AccessResultCode execute(final LnClientConnection conn, final DlmsDevice device, final DataObject object)
+            throws ProtocolAdapterException {
+        final AttributeAddress clockTime = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
 
         final DateTime dt = DateTime.now();
+        final DataObject time = this.dlmsHelperService.asDataObject(dt);
 
-        final DataObject obj = this.dlmsHelperService.asDataObject(dt);
+        final SetParameter setParameter = new SetParameter(clockTime, time);
 
-        final SetRequestParameter request = factory.createSetRequestParameter(obj);
-
-        return conn.set(request).get(0);
+        try {
+            return conn.set(setParameter).get(0);
+        } catch (final IOException e) {
+            throw new ConnectionException(e);
+        }
     }
 }

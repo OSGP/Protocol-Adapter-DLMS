@@ -1,7 +1,16 @@
+/**
+ * Copyright 2015 Smart Society Services B.V.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
@@ -10,8 +19,12 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Test;
-import org.openmuc.jdlms.DataObject;
-import org.openmuc.jdlms.internal.CosemDateTime;
+import org.openmuc.jdlms.datatypes.CosemDateTime;
+import org.openmuc.jdlms.datatypes.DataObject;
+
+import com.alliander.osgp.dto.valueobjects.smartmetering.ClockStatus;
+import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDate;
+import com.alliander.osgp.dto.valueobjects.smartmetering.CosemTime;
 
 public class DlmsHelperServiceTest {
 
@@ -44,7 +57,7 @@ public class DlmsHelperServiceTest {
 
         final CosemDateTime cosemDateTime = (CosemDateTime) dateInSummerTimeDataObject.value();
 
-        assertArrayEquals(this.byteArraySummerTime(), cosemDateTime.ocletString());
+        assertArrayEquals(this.byteArraySummerTime(), cosemDateTime.encode());
     }
 
     @Test
@@ -57,23 +70,48 @@ public class DlmsHelperServiceTest {
 
         final CosemDateTime cosemDateTime = (CosemDateTime) dateInWinterTimeDataObject.value();
 
-        assertArrayEquals(this.byteArrayWinterTime(), cosemDateTime.ocletString());
+        assertArrayEquals(this.byteArrayWinterTime(), cosemDateTime.encode());
     }
 
     @Test
-    public void testFromByteArraySummerTime() {
+    public void testFromByteArraySummerTime() throws Exception {
 
-        final DateTime dateInSummerTime = this.dlmsHelperService.fromDateTimeValue(this.byteArraySummerTime());
+        final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime cosemDateTime = this.dlmsHelperService
+                .fromDateTimeValue(this.byteArraySummerTime());
+
+        assertTrue(cosemDateTime.isDateTimeSpecified());
+
+        final DateTime dateInSummerTime = cosemDateTime.asDateTime();
 
         assertEquals("2015-07-21T14:53:07.230+02:00", ISODateTimeFormat.dateTime().print(dateInSummerTime));
     }
 
     @Test
-    public void testFromByteArrayWinterTime() {
+    public void testFromByteArrayWinterTime() throws Exception {
 
-        final DateTime dateInWinterTime = this.dlmsHelperService.fromDateTimeValue(this.byteArrayWinterTime());
+        final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime cosemDateTime = this.dlmsHelperService
+                .fromDateTimeValue(this.byteArrayWinterTime());
+
+        assertTrue(cosemDateTime.isDateTimeSpecified());
+
+        final DateTime dateInWinterTime = cosemDateTime.asDateTime();
 
         assertEquals("2015-02-21T14:53:07.230+01:00", ISODateTimeFormat.dateTime().print(dateInWinterTime));
+    }
+
+    @Test
+    public void testFromByteArrayUnspecifiedTime() throws Exception {
+
+        final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime cosemDateTime = this.dlmsHelperService
+                .fromDateTimeValue(this.byteArrayUnspecifiedTime());
+
+        assertFalse(cosemDateTime.isDateTimeSpecified());
+        assertFalse(cosemDateTime.isLocalDateSpecified());
+        assertFalse(cosemDateTime.isLocalDateTimeSpecified());
+        assertFalse(cosemDateTime.isLocalTimeSpecified());
+        assertFalse(cosemDateTime.isDeviationSpecified());
+
+        assertNull(cosemDateTime.asDateTime());
     }
 
     @Test
@@ -124,6 +162,23 @@ public class DlmsHelperServiceTest {
         bb.put(HUNDREDTHS);
         bb.putShort(DEVIATION_AMSTERDAM_WINTER_TIME);
         bb.put(CLOCK_STATUS_NO_DST);
+
+        return bb.array();
+    }
+
+    private byte[] byteArrayUnspecifiedTime() {
+
+        final ByteBuffer bb = ByteBuffer.allocate(NUM_BYTES_DATE_TIME);
+        bb.putShort((short) CosemDate.YEAR_NOT_SPECIFIED);
+        bb.put((byte) CosemDate.MONTH_NOT_SPECIFIED);
+        bb.put((byte) CosemDate.DAY_OF_MONTH_NOT_SPECIFIED);
+        bb.put((byte) CosemDate.DAY_OF_WEEK_NOT_SPECIFIED);
+        bb.put((byte) CosemTime.HOUR_NOT_SPECIFIED);
+        bb.put((byte) CosemTime.MINUTE_NOT_SPECIFIED);
+        bb.put((byte) CosemTime.SECOND_NOT_SPECIFIED);
+        bb.put((byte) CosemTime.HUNDREDTHS_NOT_SPECIFIED);
+        bb.putShort((short) com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime.DEVIATION_NOT_SPECIFIED);
+        bb.put((byte) ClockStatus.STATUS_NOT_SPECIFIED);
 
         return bb.array();
     }
