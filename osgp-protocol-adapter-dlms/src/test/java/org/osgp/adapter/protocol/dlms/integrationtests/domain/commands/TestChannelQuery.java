@@ -7,14 +7,14 @@
  */
 package org.osgp.adapter.protocol.dlms.integrationtests.domain.commands;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.Channel;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelQuery;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelQueryDto;
 
-public class TestChannelQuery implements ChannelQuery {
+public class TestChannelQuery implements ChannelQueryDto {
 
     @Override
-    public Channel getChannel() {
-        return Channel.NONE;
+    public ChannelDto getChannel() {
+        return ChannelDto.NONE;
     }
 
 }

@@ -20,7 +20,7 @@ import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.RetrieveConfigurationObjectsRequest;
+import com.alliander.osgp.dto.valueobjects.smartmetering.RetrieveConfigurationObjectsRequestDto;
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 
 @Component("dlmsRetrieveConfigurationObjectsRequestMessageProcessor")
@@ -36,7 +36,7 @@ public class RetrieveConfigurationObjectsRequestMessageProcessor extends DeviceR
     @Override
     protected Serializable handleMessage(final ClientConnection conn, final DlmsDevice device,
             final Serializable requestObject) throws OsgpException, ProtocolAdapterException, SessionProviderException {
-        final RetrieveConfigurationObjectsRequest retrieveConfigurationRequest = (RetrieveConfigurationObjectsRequest) requestObject;
+        final RetrieveConfigurationObjectsRequestDto retrieveConfigurationRequest = (RetrieveConfigurationObjectsRequestDto) requestObject;
 
         return this.adhocService.retrieveConfigurationObjects(conn, device, retrieveConfigurationRequest);
     }

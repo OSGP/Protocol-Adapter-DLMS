@@ -17,11 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.Channel;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelQuery;
-import com.alliander.osgp.dto.valueobjects.smartmetering.DlmsUnit;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnit;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponse;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelQueryDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.DlmsUnitDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponseDto;
 
 /**
  * baseclass meant to simplify implementing the retrieval of scaler and unit
@@ -30,7 +30,7 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponse;
  *
  * @param <R>
  */
-public abstract class AbstractMeterReadsScalerUnitCommandExecutor<T extends ChannelQuery, R extends ScalerUnitResponse>
+public abstract class AbstractMeterReadsScalerUnitCommandExecutor<T extends ChannelQueryDto, R extends ScalerUnitResponseDto>
         implements ScalerUnitAwareCommandExecutor<T, R> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMeterReadsScalerUnitCommandExecutor.class);
@@ -63,7 +63,7 @@ public abstract class AbstractMeterReadsScalerUnitCommandExecutor<T extends Chan
     }
 
     @Override
-    public ScalerUnit convert(final DataObject dataObject) throws ProtocolAdapterException {
+    public ScalerUnitDto convert(final DataObject dataObject) throws ProtocolAdapterException {
         LOGGER.debug(this.dlmsHelperService.getDebugInfo(dataObject));
         if (!dataObject.isComplex()) {
             throw new ProtocolAdapterException("complex data (structure) expected while retrieving scaler and unit."
@@ -77,16 +77,16 @@ public abstract class AbstractMeterReadsScalerUnitCommandExecutor<T extends Chan
         final DataObject scaler = value.get(0);
         final DataObject unit = value.get(1);
 
-        return new ScalerUnit(DlmsUnit.fromDlmsEnum(this.dlmsHelperService.readLongNotNull(unit, "unit value")
+        return new ScalerUnitDto(DlmsUnitDto.fromDlmsEnum(this.dlmsHelperService.readLongNotNull(unit, "unit value")
                 .intValue()), this.dlmsHelperService.readLongNotNull(scaler, "scaler value").intValue());
     }
 
     @Override
     public AttributeAddress getScalerUnitAttributeAddress(final T channelQuery) throws ProtocolAdapterException {
-        final ObisCode obisCodeRegister = channelQuery.getChannel().equals(Channel.NONE) ? REGISTER_FOR_SCALER_UNIT
+        final ObisCode obisCodeRegister = channelQuery.getChannel().equals(ChannelDto.NONE) ? REGISTER_FOR_SCALER_UNIT
                 : this.registerForScalerUnit(channelQuery.getChannel().getChannelNumber());
 
-        return channelQuery.getChannel().equals(Channel.NONE) ? new AttributeAddress(CLASS_ID, obisCodeRegister,
+        return channelQuery.getChannel().equals(ChannelDto.NONE) ? new AttributeAddress(CLASS_ID, obisCodeRegister,
                 ATTRIBUTE_ID_SCALER_UNIT) : new AttributeAddress(CLASS_ID_MBUS, obisCodeRegister,
                         ATTRIBUTE_ID_SCALER_UNIT);
     }

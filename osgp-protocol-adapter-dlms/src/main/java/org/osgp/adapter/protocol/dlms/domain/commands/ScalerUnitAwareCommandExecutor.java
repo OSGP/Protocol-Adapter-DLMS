@@ -12,8 +12,8 @@ import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnit;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponse;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponseDto;
 
 /**
  * interface for command executors that should provide scaler unit information.
@@ -24,7 +24,7 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponse;
  * @param <R>
  *            a response from which scaler unit information can be retrieved
  */
-public interface ScalerUnitAwareCommandExecutor<T, R extends ScalerUnitResponse> extends CommandExecutor<T, R> {
+public interface ScalerUnitAwareCommandExecutor<T, R extends ScalerUnitResponseDto> extends CommandExecutor<T, R> {
 
     /**
      * the attribute address to scaler unit information on the dlms device
@@ -44,6 +44,6 @@ public interface ScalerUnitAwareCommandExecutor<T, R extends ScalerUnitResponse>
      * @param dataObject
      * @return the scaler / unit of the value(s) retrieved
      */
-    ScalerUnit convert(DataObject dataObject) throws ProtocolAdapterException;
+    ScalerUnitDto convert(DataObject dataObject) throws ProtocolAdapterException;
 
 }

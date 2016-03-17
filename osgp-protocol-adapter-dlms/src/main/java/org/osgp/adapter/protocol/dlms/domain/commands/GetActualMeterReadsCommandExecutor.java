@@ -23,13 +23,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReads;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQuery;
-import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQueryDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTimeDto;
 
 @Component()
 public class GetActualMeterReadsCommandExecutor extends
-        AbstractMeterReadsScalerUnitCommandExecutor<ActualMeterReadsQuery, ActualMeterReads> {
+        AbstractMeterReadsScalerUnitCommandExecutor<ActualMeterReadsQueryDto, ActualMeterReadsDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetActualMeterReadsCommandExecutor.class);
 
@@ -69,8 +69,8 @@ public class GetActualMeterReadsCommandExecutor extends
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public ActualMeterReads execute(final ClientConnection conn, final DlmsDevice device,
-            final ActualMeterReadsQuery actualMeterReadsQuery) throws ProtocolAdapterException {
+    public ActualMeterReadsDto execute(final ClientConnection conn, final DlmsDevice device,
+            final ActualMeterReadsQueryDto actualMeterReadsQuery) throws ProtocolAdapterException {
 
         if (actualMeterReadsQuery != null && actualMeterReadsQuery.isGas()) {
             throw new IllegalArgumentException("ActualMeterReadsQuery object for energy reads should not be about gas.");
@@ -83,7 +83,7 @@ public class GetActualMeterReadsCommandExecutor extends
 
         checkResultList(getResultList);
 
-        final CosemDateTime cosemDateTime = this.dlmsHelperService.readDateTime(getResultList.get(INDEX_TIME),
+        final CosemDateTimeDto cosemDateTime = this.dlmsHelperService.readDateTime(getResultList.get(INDEX_TIME),
                 "Actual Energy Reads Time");
         final DateTime time = cosemDateTime.asDateTime();
         if (time == null) {
@@ -104,7 +104,7 @@ public class GetActualMeterReadsCommandExecutor extends
         final DataObject scalerUnit = this.dlmsHelperService.readDataObject(getResultList.get(INDEX_SCALER_UNIT),
                 "Scaler and Unit");
 
-        return new ActualMeterReads(time.toDate(), activeEnergyImport, activeEnergyExport, activeEnergyImportRate1,
+        return new ActualMeterReadsDto(time.toDate(), activeEnergyImport, activeEnergyExport, activeEnergyImportRate1,
                 activeEnergyImportRate2, activeEnergyExportRate1, activeEnergyExportRate2, this.convert(scalerUnit));
     }
 

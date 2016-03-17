@@ -27,12 +27,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.Event;
-import com.alliander.osgp.dto.valueobjects.smartmetering.EventLogCategory;
-import com.alliander.osgp.dto.valueobjects.smartmetering.FindEventsQuery;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventLogCategoryDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.FindEventsQueryDto;
 
 @Component()
-public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEventsQuery, List<Event>> {
+public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEventsQueryDto, List<EventDto>> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RetrieveEventsCommandExecutor.class);
 
@@ -43,19 +43,19 @@ public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEvents
     DataObjectToEventListConverter dataObjectToEventListConverter;
 
     // @formatter:off
-    private static final EnumMap<EventLogCategory, ObisCode> EVENT_LOG_CATEGORY_OBISCODE_MAP = new EnumMap<>(
-            EventLogCategory.class);
+    private static final EnumMap<EventLogCategoryDto, ObisCode> EVENT_LOG_CATEGORY_OBISCODE_MAP = new EnumMap<>(
+            EventLogCategoryDto.class);
     static {
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.STANDARD_EVENT_LOG,        new ObisCode("0.0.99.98.0.255"));
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.FRAUD_DETECTION_LOG,       new ObisCode("0.0.99.98.1.255"));
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.COMMUNICATION_SESSION_LOG, new ObisCode("0.0.99.98.4.255"));
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.M_BUS_EVENT_LOG,           new ObisCode("0.0.99.98.3.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.STANDARD_EVENT_LOG,        new ObisCode("0.0.99.98.0.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.FRAUD_DETECTION_LOG,       new ObisCode("0.0.99.98.1.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.COMMUNICATION_SESSION_LOG, new ObisCode("0.0.99.98.4.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.M_BUS_EVENT_LOG,           new ObisCode("0.0.99.98.3.255"));
     }
     // @formatter:on
 
     @Override
-    public List<Event> execute(final ClientConnection conn, final DlmsDevice device,
-            final FindEventsQuery findEventsQuery) throws ProtocolAdapterException {
+    public List<EventDto> execute(final ClientConnection conn, final DlmsDevice device,
+            final FindEventsQueryDto findEventsQuery) throws ProtocolAdapterException {
 
         final AttributeAddress eventLogBuffer = new AttributeAddress(CLASS_ID,
                 EVENT_LOG_CATEGORY_OBISCODE_MAP.get(findEventsQuery.getEventLogCategory()), ATTRIBUTE_ID);

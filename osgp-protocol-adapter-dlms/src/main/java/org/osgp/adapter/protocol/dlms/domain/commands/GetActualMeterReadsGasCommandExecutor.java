@@ -22,14 +22,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsGas;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQuery;
-import com.alliander.osgp.dto.valueobjects.smartmetering.Channel;
-import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsGasDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQueryDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTimeDto;
 
 @Component()
 public class GetActualMeterReadsGasCommandExecutor extends
-        AbstractMeterReadsScalerUnitCommandExecutor<ActualMeterReadsQuery, ActualMeterReadsGas> {
+        AbstractMeterReadsScalerUnitCommandExecutor<ActualMeterReadsQueryDto, ActualMeterReadsGasDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetActualMeterReadsGasCommandExecutor.class);
 
@@ -45,8 +45,8 @@ public class GetActualMeterReadsGasCommandExecutor extends
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public ActualMeterReadsGas execute(final ClientConnection conn, final DlmsDevice device,
-            final ActualMeterReadsQuery actualMeterReadsRequest) throws ProtocolAdapterException {
+    public ActualMeterReadsGasDto execute(final ClientConnection conn, final DlmsDevice device,
+            final ActualMeterReadsQueryDto actualMeterReadsRequest) throws ProtocolAdapterException {
 
         final ObisCode obisCodeMbusMasterValue = this.masterValueForChannel(actualMeterReadsRequest.getChannel());
 
@@ -67,7 +67,7 @@ public class GetActualMeterReadsGasCommandExecutor extends
 
         final long consumption = this.dlmsHelperService.readLong(getResultList.get(0), "gas consumption");
         final DataObject time = this.dlmsHelperService.readDataObject(getResultList.get(1), "captureTime gas");
-        final CosemDateTime cosemDateTime = this.dlmsHelperService.fromDateTimeValue((byte[]) time.value());
+        final CosemDateTimeDto cosemDateTime = this.dlmsHelperService.fromDateTimeValue((byte[]) time.value());
         final Date captureTime;
         if (cosemDateTime.isDateTimeSpecified()) {
             captureTime = cosemDateTime.asDateTime().toDate();
@@ -76,7 +76,7 @@ public class GetActualMeterReadsGasCommandExecutor extends
         }
         final DataObject scalerUnit = this.dlmsHelperService.readDataObject(getResultList.get(2), "Scaler and Unit");
 
-        return new ActualMeterReadsGas(new Date(), consumption, captureTime, this.convert(scalerUnit));
+        return new ActualMeterReadsGasDto(new Date(), consumption, captureTime, this.convert(scalerUnit));
 
     }
 
@@ -92,7 +92,7 @@ public class GetActualMeterReadsGasCommandExecutor extends
         }
     }
 
-    private ObisCode masterValueForChannel(final Channel channel) throws ProtocolAdapterException {
+    private ObisCode masterValueForChannel(final ChannelDto channel) throws ProtocolAdapterException {
         switch (channel) {
         case ONE:
             return OBIS_CODE_MBUS_MASTER_VALUE_1;

@@ -21,7 +21,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.DlmsUnit;
+import com.alliander.osgp.dto.valueobjects.smartmetering.DlmsUnitDto;
 
 /**
  * This integration test requires A running up to date postgres db that can be
@@ -56,7 +56,7 @@ public class ScalerUnitTest {
 
         final ScalerUnitTestResponse execute = this.commandExecutor.execute(connection, device, new TestChannelQuery());
 
-        Assert.assertEquals(DlmsUnit.WH, execute.getScalerUnit().getDlmsUnit());
+        Assert.assertEquals(DlmsUnitDto.WH, execute.getScalerUnit().getDlmsUnit());
         Assert.assertEquals(0, execute.getScalerUnit().getScaler());
 
     }

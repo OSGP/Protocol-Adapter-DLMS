@@ -1,18 +1,18 @@
 package org.osgp.adapter.protocol.dlms.integrationtests.domain.commands;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnit;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponse;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ScalerUnitResponseDto;
 
-public class ScalerUnitTestResponse implements ScalerUnitResponse {
+public class ScalerUnitTestResponse implements ScalerUnitResponseDto {
 
-    private final ScalerUnit scalerUnit;
+    private final ScalerUnitDto scalerUnit;
 
-    public ScalerUnitTestResponse(final ScalerUnit scalerUnit) {
+    public ScalerUnitTestResponse(final ScalerUnitDto scalerUnit) {
         this.scalerUnit = scalerUnit;
     }
 
     @Override
-    public ScalerUnit getScalerUnit() {
+    public ScalerUnitDto getScalerUnit() {
         return this.scalerUnit;
     }
 
