@@ -8,6 +8,7 @@
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +23,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.openmuc.jdlms.AccessResultCode;
 import org.openmuc.jdlms.AttributeAddress;
+import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.GetResult;
-import org.openmuc.jdlms.LnClientConnection;
 import org.openmuc.jdlms.datatypes.BitString;
 import org.openmuc.jdlms.datatypes.CosemDate;
 import org.openmuc.jdlms.datatypes.CosemDateFormat;
@@ -40,6 +41,8 @@ import org.springframework.stereotype.Service;
 
 import com.alliander.osgp.dto.valueobjects.smartmetering.CosemObisCode;
 import com.alliander.osgp.dto.valueobjects.smartmetering.CosemObjectDefinition;
+import com.alliander.osgp.dto.valueobjects.smartmetering.DlmsMeterValue;
+import com.alliander.osgp.dto.valueobjects.smartmetering.DlmsUnit;
 import com.alliander.osgp.dto.valueobjects.smartmetering.MessageType;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SendDestinationAndMethod;
 import com.alliander.osgp.dto.valueobjects.smartmetering.TransportServiceType;
@@ -63,15 +66,58 @@ public class DlmsHelperService {
         TRANSPORT_SERVICE_TYPE_PER_ENUM_VALUE.put(7, TransportServiceType.ZIG_BEE);
     }
 
-    private static final String YEAR_MILLENIAL_PART = "20";
-    private static final String LAST_DAY_OF_MONTH = "FE";
-    private static final String SECOND_LAST_DAY_OF_MONTH = "FD";
-    private static final String DAYLIGHT_SAVINGS_BEGIN = "FE";
-    private static final String DAYLIGHT_SAVINGS_END = "FD";
-    private static final String NOT_SPECIFIED = "FF";
     public static final int MILLISECONDS_PER_MINUTE = 60000;
 
-    public List<GetResult> getWithList(final LnClientConnection conn, final DlmsDevice device,
+    /**
+     * get results from the meter and check if the number of results equals the
+     * number of attribute addresses provided.
+     *
+     * @param conn
+     * @param device
+     * @param description
+     * @param params
+     * @return
+     * @throws ProtocolAdapterException
+     */
+    public List<GetResult> getAndCheck(final ClientConnection conn, final DlmsDevice device, final String description,
+            final AttributeAddress... params) throws ProtocolAdapterException {
+        final List<GetResult> getResults = this.getWithList(conn, device, params);
+        this.checkResultList(getResults, params.length, description);
+        return getResults;
+    }
+
+    /**
+     * Check if the number of result matches the number of expected results,
+     * when there is only one result the {@link AccessResultCode} of that result
+     * is checked.
+     *
+     * @param getResultList
+     *            the list of results to be checked, when null a
+     *            nullpointerexception is thrown
+     * @param expectedResults
+     *            the number of results expected
+     * @param description
+     *            a description that will be used in exceptions thrown, may be
+     *            null
+     * @throws ProtocolAdapterException
+     *             when the number of results does not match the expected number
+     *             or when the one and only result is erroneous.
+     */
+    public void checkResultList(final List<GetResult> getResultList, final int expectedResults, final String description)
+            throws ProtocolAdapterException {
+        if (getResultList.isEmpty()) {
+            throw new ProtocolAdapterException("No GetResult received: " + description);
+        } else if (getResultList.size() == 1 && AccessResultCode.SUCCESS != getResultList.get(0).resultCode()) {
+            throw new ProtocolAdapterException(getResultList.get(0).resultCode().name());
+        }
+
+        if (getResultList.size() != expectedResults) {
+            throw new ProtocolAdapterException("Expected " + expectedResults + " GetResults: " + description + ", got "
+                    + getResultList.size());
+        }
+    }
+
+    public List<GetResult> getWithList(final ClientConnection conn, final DlmsDevice device,
             final AttributeAddress... params) throws ProtocolAdapterException {
         try {
             if (device.isWithListSupported()) {
@@ -88,6 +134,51 @@ public class DlmsHelperService {
         return DataObjectDefinitions.getClockDefinition();
     }
 
+    /**
+     * create a dlms meter value, apply the scaler and determine the unit on the
+     * meter.
+     *
+     * @param value
+     * @param dataObject
+     * @return the meter value with dlms unit or null when
+     *         {@link #readLong(GetResult, String)} is null
+     * @throws ProtocolAdapterException
+     */
+    public DlmsMeterValue getScaledMeterValue(final GetResult value, final GetResult scalerUnit,
+            final String description) throws ProtocolAdapterException {
+        return this.getScaledMeterValue(value.resultData(), scalerUnit.resultData(), description);
+    }
+
+    public DlmsMeterValue getScaledMeterValue(final DataObject value, final DataObject scalerUnitObject,
+            final String description) throws ProtocolAdapterException {
+        LOGGER.debug(this.getDebugInfo(value));
+        LOGGER.debug(this.getDebugInfo(scalerUnitObject));
+        final Long rawValue = this.readLong(value, description);
+        if (rawValue == null) {
+            return null;
+        }
+
+        if (!scalerUnitObject.isComplex()) {
+            throw new ProtocolAdapterException("complex data (structure) expected while retrieving scaler and unit."
+                    + this.getDebugInfo(scalerUnitObject));
+        }
+        final List<DataObject> dataObjects = scalerUnitObject.value();
+        if (dataObjects.size() != 2) {
+            throw new ProtocolAdapterException("expected 2 values while retrieving scaler and unit."
+                    + this.getDebugInfo(scalerUnitObject));
+        }
+        final int scaler = this.readLongNotNull(dataObjects.get(0), description).intValue();
+        final DlmsUnit unit = DlmsUnit.fromDlmsEnum(this.readLongNotNull(dataObjects.get(1), description).intValue());
+
+        // determine value
+        BigDecimal scaledValue = BigDecimal.valueOf(rawValue);
+        if (scaler != 0) {
+            scaledValue = scaledValue.multiply(BigDecimal.valueOf(Math.pow(10, scaler)));
+        }
+
+        return new DlmsMeterValue(scaledValue, unit);
+    }
+
     public DataObject getAMRProfileDefinition() {
         return DataObjectDefinitions.getAMRProfileDefinition();
     }
@@ -99,9 +190,9 @@ public class DlmsHelperService {
      * @throws IOException
      * @throws TimeoutException
      *
-     * @see #getWithList(LnClientConnection, DlmsDevice, AttributeAddress...)
+     * @see #getWithList(ClientConnection, DlmsDevice, AttributeAddress...)
      */
-    private List<GetResult> getWithListWorkaround(final LnClientConnection conn, final AttributeAddress... params)
+    private List<GetResult> getWithListWorkaround(final ClientConnection conn, final AttributeAddress... params)
             throws IOException, TimeoutException {
         final List<GetResult> getResultList = new ArrayList<>();
         for (final AttributeAddress param : params) {
@@ -211,7 +302,8 @@ public class DlmsHelperService {
         }
 
         final int year = jdlmsCosemDateTime.valueFor(CosemDateFormat.Field.YEAR);
-        final int month = jdlmsCosemDateTime.valueFor(CosemDateFormat.Field.MONTH);
+        // valueFor makes the month start at 0, cosemdate month starts at 1
+        final int month = jdlmsCosemDateTime.valueFor(CosemDateFormat.Field.MONTH) + 1;
         final int dayOfMonth = jdlmsCosemDateTime.valueFor(CosemDateFormat.Field.DAY_OF_MONTH);
         final int dayOfWeek = jdlmsCosemDateTime.valueFor(CosemDateFormat.Field.DAY_OF_WEEK);
         final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDate date = new com.alliander.osgp.dto.valueobjects.smartmetering.CosemDate(
@@ -271,16 +363,6 @@ public class DlmsHelperService {
         return new com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime(date, time, deviation, clockStatus);
     }
 
-    public DataObject dateAsDataObjectOctetString(final DateTime dateTime) {
-
-        final Integer h = dateTime.getHourOfDay();
-        final Integer m = dateTime.getMinuteOfHour();
-        final Integer s = dateTime.getSecondOfMinute();
-
-        final byte[] ba = new byte[] { h.byteValue(), m.byteValue(), s.byteValue(), (byte) 0 };
-        return DataObject.newOctetStringData(ba);
-    }
-
     public DataObject asDataObject(final DateTime dateTime) {
 
         final CosemDate cosemDate = new CosemDate(dateTime.getYear(), dateTime.getMonthOfYear(),
@@ -299,53 +381,11 @@ public class DlmsHelperService {
         return DataObject.newDateTimeData(cosemDateTime);
     }
 
-    /**
-     * The format of the date string is YYMMDD and if the year is unspecified
-     * the year positions should hold "FF" as value Also as the date string only
-     * holds the decade part of the year, the conversion uses the constant "20"
-     * as the centenial/millenial part of the year
-     *
-     * @param date
-     *            the date as String object
-     * @return DateObject as OctetString
-     */
-    public DataObject dateStringToOctetString(final String date) {
+    public DataObject asDataObject(final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDate date) {
 
-        final ByteBuffer bb = ByteBuffer.allocate(5);
-
-        final String year = date.substring(0, 2);
-        if (NOT_SPECIFIED.equalsIgnoreCase(year)) {
-            bb.putShort((short) 0xFFFF);
-        } else {
-            bb.putShort(Short.valueOf(YEAR_MILLENIAL_PART + year));
-        }
-
-        final String month = date.substring(2, 4);
-        if (NOT_SPECIFIED.equalsIgnoreCase(month)) {
-            bb.put((byte) 0xFF);
-        } else if (DAYLIGHT_SAVINGS_END.equalsIgnoreCase(month)) {
-            bb.put((byte) 0xFD);
-        } else if (DAYLIGHT_SAVINGS_BEGIN.equalsIgnoreCase(month)) {
-            bb.put((byte) 0xFD);
-        } else {
-            bb.put(Byte.parseByte(month));
-        }
-
-        final String dayOfMonth = date.substring(4);
-        if (NOT_SPECIFIED.equalsIgnoreCase(dayOfMonth)) {
-            bb.put((byte) 0xFF);
-        } else if (SECOND_LAST_DAY_OF_MONTH.equalsIgnoreCase(month)) {
-            bb.put((byte) 0xFD);
-        } else if (LAST_DAY_OF_MONTH.equalsIgnoreCase(month)) {
-            bb.put((byte) 0xFE);
-        } else {
-            bb.put(Byte.parseByte(dayOfMonth));
-        }
-
-        // leave day of week unspecified (0xFF)
-        bb.put((byte) 0xFF);
-
-        return DataObject.newOctetStringData(bb.array());
+        final CosemDate cosemDate = new CosemDate(date.getYear(), date.getMonth(), date.getDayOfMonth(),
+                date.getDayOfWeek());
+        return DataObject.newDateData(cosemDate);
     }
 
     public List<CosemObjectDefinition> readListOfObjectDefinition(final GetResult getResult, final String description)
@@ -507,7 +547,7 @@ public class DlmsHelperService {
         final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime startTime = this.readCosemDateTime(
                 elements.get(0), "Start Time from " + description);
         final com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime endTime = this.readCosemDateTime(
-                elements.get(0), "End Time from " + description);
+                elements.get(1), "End Time from " + description);
 
         return new WindowElement(startTime, endTime);
     }

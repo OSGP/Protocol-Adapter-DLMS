@@ -1,11 +1,10 @@
 /**
- * Copyright 2014-2016 Smart Society Services B.V.
+ * Copyright 2015 Smart Society Services B.V.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
-
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import java.io.IOException;
@@ -14,8 +13,8 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import org.openmuc.jdlms.AttributeAddress;
+import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.GetResult;
-import org.openmuc.jdlms.LnClientConnection;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
@@ -46,7 +45,7 @@ public class RetrieveConfigurationObjectsCommandExecutor implements CommandExecu
     private static final Logger LOGGER = LoggerFactory.getLogger(RetrieveConfigurationObjectsCommandExecutor.class);
 
     @Override
-    public String execute(final LnClientConnection conn, final DlmsDevice device, final DataObject object)
+    public String execute(final ClientConnection conn, final DlmsDevice device, final DataObject object)
             throws ProtocolAdapterException {
 
         final AttributeAddress attributeAddress = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
@@ -102,7 +101,7 @@ public class RetrieveConfigurationObjectsCommandExecutor implements CommandExecu
         }
     }
 
-    private String createOutput(final LnClientConnection conn, final List<ClassIdObisAttr> allObisCodes)
+    private String createOutput(final ClientConnection conn, final List<ClassIdObisAttr> allObisCodes)
             throws ProtocolAdapterException, IOException, TimeoutException {
         String output = "";
         int index = 1;
@@ -114,7 +113,7 @@ public class RetrieveConfigurationObjectsCommandExecutor implements CommandExecu
         return output;
     }
 
-    private String getAllDataFromObisCode(final LnClientConnection conn, final ClassIdObisAttr obisAttr)
+    private String getAllDataFromObisCode(final ClientConnection conn, final ClassIdObisAttr obisAttr)
             throws ProtocolAdapterException, IOException, TimeoutException {
         String output = "";
 
@@ -127,7 +126,7 @@ public class RetrieveConfigurationObjectsCommandExecutor implements CommandExecu
         return output;
     }
 
-    private String getAllDataFromAttribute(final LnClientConnection conn, final int classNumber,
+    private String getAllDataFromAttribute(final ClientConnection conn, final int classNumber,
             final DataObject obisCode, final int attributeValue) throws ProtocolAdapterException, IOException,
             TimeoutException {
 

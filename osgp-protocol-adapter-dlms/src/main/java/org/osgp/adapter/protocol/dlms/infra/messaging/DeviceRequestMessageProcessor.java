@@ -13,6 +13,11 @@ import javax.annotation.PostConstruct;
 import javax.jms.JMSException;
 import javax.jms.ObjectMessage;
 
+import org.openmuc.jdlms.ClientConnection;
+import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.exceptions.SessionProviderException;
+import org.osgp.adapter.protocol.dlms.application.services.DomainHelperService;
+import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionFactory;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.OsgpExceptionConverter;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
@@ -22,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
+import com.alliander.osgp.shared.infra.jms.DeviceMessageMetadata;
 import com.alliander.osgp.shared.infra.jms.MessageProcessor;
 import com.alliander.osgp.shared.infra.jms.MessageProcessorMap;
 import com.alliander.osgp.shared.infra.jms.ProtocolResponseMessage;
@@ -47,6 +53,12 @@ public abstract class DeviceRequestMessageProcessor implements MessageProcessor 
 
     @Autowired
     protected OsgpExceptionConverter osgpExceptionConverter;
+
+    @Autowired
+    private DomainHelperService domainHelperService;
+
+    @Autowired
+    private DlmsConnectionFactory dlmsConnectionFactory;
 
     protected final DeviceRequestMessageType deviceRequestMessageType;
 
@@ -97,6 +109,9 @@ public abstract class DeviceRequestMessageProcessor implements MessageProcessor 
         LOGGER.debug("Processing {} request message", this.deviceRequestMessageType.name());
         final DlmsDeviceMessageMetadata messageMetadata = new DlmsDeviceMessageMetadata();
 
+        ClientConnection conn = null;
+        DlmsDevice device = null;
+
         try {
             // Handle message
             messageMetadata.handleMessage(message);
@@ -104,7 +119,10 @@ public abstract class DeviceRequestMessageProcessor implements MessageProcessor 
             LOGGER.info("{} called for device: {} for organisation: {}", message.getJMSType(),
                     messageMetadata.getDeviceIdentification(), messageMetadata.getOrganisationIdentification());
 
-            final Serializable response = this.handleMessage(messageMetadata, message.getObject());
+            device = this.domainHelperService.findDlmsDevice(messageMetadata);
+            conn = this.dlmsConnectionFactory.getConnection(device);
+
+            final Serializable response = this.handleMessage(conn, device, message.getObject());
 
             // Send response
             this.sendResponseMessage(messageMetadata, ResponseMessageResultType.OK, null, this.responseMessageSender,
@@ -122,6 +140,11 @@ public abstract class DeviceRequestMessageProcessor implements MessageProcessor 
             final OsgpException ex = this.osgpExceptionConverter.ensureOsgpOrTechnicalException(exception);
             this.sendResponseMessage(messageMetadata, ResponseMessageResultType.NOT_OK, ex, this.responseMessageSender,
                     message.getObject());
+        } finally {
+            if (conn != null) {
+                LOGGER.info("Closing connection with {}", device.getDeviceIdentification());
+                conn.close();
+            }
         }
     }
 
@@ -131,26 +154,37 @@ public abstract class DeviceRequestMessageProcessor implements MessageProcessor 
      * queue. This response object can also be null for methods that don't
      * provide result data.
      *
-     * @param messageMetadata
-     *            Message meta data.
+     * @param ClientConnection
+     *            the connection to the device.
+     * @param device
+     *            the device.
      * @param requestObject
      *            Request data object.
      * @return A serializable object to be put on the response queue.
      * @throws OsgpException
      * @throws ProtocolAdapterException
+     * @throws SessionProviderException
      */
-    protected abstract Serializable handleMessage(final DlmsDeviceMessageMetadata messageMetadata,
-            final Serializable requestObject) throws OsgpException, ProtocolAdapterException;
+    protected abstract Serializable handleMessage(ClientConnection conn, final DlmsDevice device,
+            final Serializable requestObject) throws OsgpException, ProtocolAdapterException, SessionProviderException;
 
-    private void sendResponseMessage(final DlmsDeviceMessageMetadata messageMetadata,
+    private void sendResponseMessage(final DlmsDeviceMessageMetadata dlmsDeviceMessageMetadata,
             final ResponseMessageResultType result, final OsgpException osgpException,
             final DeviceResponseMessageSender responseMessageSender, final Serializable responseObject) {
 
-        final ProtocolResponseMessage responseMessage = new ProtocolResponseMessage(messageMetadata.getDomain(),
-                messageMetadata.getDomainVersion(), messageMetadata.getMessageType(),
-                messageMetadata.getCorrelationUid(), messageMetadata.getOrganisationIdentification(),
-                messageMetadata.getDeviceIdentification(), result, osgpException, responseObject,
-                messageMetadata.getRetryCount());
+        final DeviceMessageMetadata deviceMessageMetadata = dlmsDeviceMessageMetadata.asDeviceMessageMetadata();
+
+        // @formatter:off
+        final ProtocolResponseMessage responseMessage = new ProtocolResponseMessage.Builder()
+        .deviceMessageMetadata(deviceMessageMetadata)
+        .domain(dlmsDeviceMessageMetadata.getDomain())
+        .domainVersion(dlmsDeviceMessageMetadata.getDomainVersion())
+        .result(result)
+        .osgpException(osgpException)
+        .dataObject(responseObject)
+        .retryCount(dlmsDeviceMessageMetadata.getRetryCount())
+        .build();
+        // @formatter:on
 
         responseMessageSender.send(responseMessage);
     }
