@@ -22,14 +22,14 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.GetAdministrativeStatus
 
 @Component()
 public class GetAdministrativeStatusBundleCommandExecutorImpl extends
-        BundleCommandExecutor<GetAdministrativeStatusDataDto, ActionResponseDto> implements
-        GetAdministrativeStatusBundleCommandExecutor {
+BundleCommandExecutor<GetAdministrativeStatusDataDto, ActionResponseDto> implements
+GetAdministrativeStatusBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory
             .getLogger(GetAdministrativeStatusBundleCommandExecutorImpl.class);
 
     @Autowired
-    GetAdministrativeStatusCommandExecutor getAdministrativeStatusCommandExecutor;
+    private GetAdministrativeStatusCommandExecutor getAdministrativeStatusCommandExecutor;
 
     @Autowired
     private ConfigurationMapper configurationMapper;

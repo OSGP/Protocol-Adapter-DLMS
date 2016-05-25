@@ -21,13 +21,13 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQueryDt
 
 @Component()
 public class GetActualMeterReadsBundleCommandExecutorImpl extends
-BundleCommandExecutor<ActualMeterReadsDataDto, ActionResponseDto> implements
-GetActualMeterReadsBundleCommandExecutor {
+        BundleCommandExecutor<ActualMeterReadsDataDto, ActionResponseDto> implements
+        GetActualMeterReadsBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetActualMeterReadsBundleCommandExecutorImpl.class);
 
     @Autowired
-    GetActualMeterReadsCommandExecutor getActualMeterReadsCommandExecutor;
+    private GetActualMeterReadsCommandExecutor getActualMeterReadsCommandExecutor;
 
     public GetActualMeterReadsBundleCommandExecutorImpl() {
         super(ActualMeterReadsDataDto.class);

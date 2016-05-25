@@ -21,13 +21,13 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.SpecialDaysRequestDataD
 
 @Component()
 public class SetSpecialDaysBundleCommandExecutorImpl extends
-        BundleCommandExecutor<SpecialDaysRequestDataDto, ActionResponseDto> implements
-        SetSpecialDaysBundleCommandExecutor {
+BundleCommandExecutor<SpecialDaysRequestDataDto, ActionResponseDto> implements
+SetSpecialDaysBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SetSpecialDaysBundleCommandExecutorImpl.class);
 
     @Autowired
-    SetSpecialDaysCommandExecutor setSpecialDaysCommandExecutor;
+    private SetSpecialDaysCommandExecutor setSpecialDaysCommandExecutor;
 
     public SetSpecialDaysBundleCommandExecutorImpl() {
         super(SpecialDaysRequestDataDto.class);

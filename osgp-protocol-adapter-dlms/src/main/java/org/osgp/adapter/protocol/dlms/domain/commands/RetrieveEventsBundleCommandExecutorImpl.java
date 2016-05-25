@@ -24,12 +24,12 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.FindEventsRequestDto;
 
 @Component()
 public class RetrieveEventsBundleCommandExecutorImpl extends
-BundleCommandExecutor<FindEventsRequestDto, ActionResponseDto> implements RetrieveEventsBundleCommandExecutor {
+        BundleCommandExecutor<FindEventsRequestDto, ActionResponseDto> implements RetrieveEventsBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RetrieveEventsBundleCommandExecutorImpl.class);
 
     @Autowired
-    RetrieveEventsCommandExecutor retrieveEventsCommandExecutor;
+    private RetrieveEventsCommandExecutor retrieveEventsCommandExecutor;
 
     @Autowired
     private DlmsHelperService dlmsHelperService;
