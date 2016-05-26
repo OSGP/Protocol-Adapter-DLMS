@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 import com.alliander.osgp.dto.valueobjects.smartmetering.AdministrativeStatusTypeDto;
 
 @Component()
-public class GetAdministrativeStatusCommandExecutor implements CommandExecutor<Void, AdministrativeStatusTypeDto> {
+public class GetAdministrativeStatusCommandExecutor extends CommandExecutorNoInput<AdministrativeStatusTypeDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetAdministrativeStatusCommandExecutor.class);
 
@@ -40,7 +40,7 @@ public class GetAdministrativeStatusCommandExecutor implements CommandExecutor<V
     private ConfigurationMapper configurationMapper;
 
     @Override
-    public AdministrativeStatusTypeDto execute(final ClientConnection conn, final DlmsDevice device, final Void useless)
+    public AdministrativeStatusTypeDto execute(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
         final AttributeAddress getParameter = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);

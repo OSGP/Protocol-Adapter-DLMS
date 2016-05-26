@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class RetrieveConfigurationObjectsCommandExecutor implements CommandExecutor<DataObject, String> {
+public class RetrieveConfigurationObjectsCommandExecutor extends CommandExecutorNoInput<String> {
 
     private static final int OBIS_CODE_BYTE_ARRAY_LENGTH = 6;
     /* 0 is the index of the class number */
@@ -45,8 +45,7 @@ public class RetrieveConfigurationObjectsCommandExecutor implements CommandExecu
     private static final Logger LOGGER = LoggerFactory.getLogger(RetrieveConfigurationObjectsCommandExecutor.class);
 
     @Override
-    public String execute(final ClientConnection conn, final DlmsDevice device, final DataObject object)
-            throws ProtocolAdapterException {
+    public String execute(final ClientConnection conn, final DlmsDevice device) throws ProtocolAdapterException {
 
         final AttributeAddress attributeAddress = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
 

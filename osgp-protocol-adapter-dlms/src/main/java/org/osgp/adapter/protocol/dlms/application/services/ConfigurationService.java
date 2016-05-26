@@ -45,10 +45,10 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.ConfigurationFlagsDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.ConfigurationObjectDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.GMeterInfoDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.GprsOperationModeTypeDto;
-import com.alliander.osgp.dto.valueobjects.smartmetering.SetKeysRequestDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupAlarmDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupSmsDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SetConfigurationObjectRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.SetKeysRequestDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SpecialDayDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SpecialDaysRequestDataDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SpecialDaysRequestDto;
@@ -187,7 +187,7 @@ public class ConfigurationService {
     public AdministrativeStatusTypeDto requestGetAdministrativeStatus(final ClientConnection conn,
             final DlmsDevice device) throws ProtocolAdapterException {
 
-        return this.getAdministrativeStatusCommandExecutor.execute(conn, device, null);
+        return this.getAdministrativeStatusCommandExecutor.execute(conn, device);
     }
 
     public String setEncryptionKeyExchangeOnGMeter(final ClientConnection conn, final DlmsDevice device,
@@ -205,7 +205,7 @@ public class ConfigurationService {
         final ProtocolMeterInfo protocolMeterInfo = new ProtocolMeterInfo(gMeterInfo.getChannel(),
                 gMeterInfo.getDeviceIdentification(), gMeterDevice.getValidSecurityKey(
                         SecurityKeyType.G_METER_ENCRYPTION).getKey(), gMeterDevice.getValidSecurityKey(
-                        SecurityKeyType.G_METER_MASTER).getKey());
+                                SecurityKeyType.G_METER_MASTER).getKey());
 
         this.setEncryptionKeyExchangeOnGMeterCommandExecutor.execute(conn, device, protocolMeterInfo);
 
@@ -219,8 +219,7 @@ public class ConfigurationService {
 
         this.setActivityCalendarCommandExecutor.execute(conn, device, activityCalendar);
 
-        final MethodResultCode methodResult = this.setActivityCalendarCommandActivationExecutor.execute(conn, device,
-                null);
+        final MethodResultCode methodResult = this.setActivityCalendarCommandActivationExecutor.execute(conn, device);
 
         if (!MethodResultCode.SUCCESS.equals(methodResult)) {
             throw new ProtocolAdapterException("AccessResultCode for set Activity Calendar: " + methodResult);
@@ -263,7 +262,7 @@ public class ConfigurationService {
     public List<FirmwareVersionDto> requestFirmwareVersion(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
-        return this.getFirmwareVersionCommandExecutor.execute(conn, device, null);
+        return this.getFirmwareVersionCommandExecutor.execute(conn, device);
     }
 
     public void replaceKeys(final ClientConnection conn, final DlmsDevice device, final SetKeysRequestDto keySet)
