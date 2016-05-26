@@ -35,7 +35,7 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.MethodAccessItemDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.MethodAccessModeTypeDto;
 
 @Component
-public class GetAssociationLnObjectsCommandExecutor implements CommandExecutor<Void, AssociationLnListTypeDto> {
+public class GetAssociationLnObjectsCommandExecutor extends CommandExecutorNoInput<AssociationLnListTypeDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetAssociationLnObjectsCommandExecutor.class);
 
@@ -61,7 +61,7 @@ public class GetAssociationLnObjectsCommandExecutor implements CommandExecutor<V
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public AssociationLnListTypeDto execute(final ClientConnection conn, final DlmsDevice device, final Void object)
+    public AssociationLnListTypeDto execute(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
         final AttributeAddress attributeAddress = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
@@ -79,7 +79,7 @@ public class GetAssociationLnObjectsCommandExecutor implements CommandExecutor<V
 
         @SuppressWarnings("unchecked")
         final List<AssociationLnListElementDto> elements = this
-        .convertAssociationLnList((List<DataObject>) getResultList.get(0).resultData().value());
+                .convertAssociationLnList((List<DataObject>) getResultList.get(0).resultData().value());
 
         return new AssociationLnListTypeDto(elements);
     }
@@ -94,9 +94,9 @@ public class GetAssociationLnObjectsCommandExecutor implements CommandExecutor<V
             final AssociationLnListElementDto element = new AssociationLnListElementDto(
                     this.dlmsHelperService.readLong(obisCodeMetaDataList.get(CLASS_ID_INDEX), "classId"), new Integer(
                             (short) obisCodeMetaDataList.get(VERSION_INDEX).value()),
-                            this.dlmsHelperService.readLogicalName(obisCodeMetaDataList.get(OBIS_CODE_INDEX),
-                            "AssociationLN Element"), this.convertAccessRights(obisCodeMetaDataList
-                                            .get(ACCESS_RIGHTS_INDEX)));
+                    this.dlmsHelperService.readLogicalName(obisCodeMetaDataList.get(OBIS_CODE_INDEX),
+                                    "AssociationLN Element"), this.convertAccessRights(obisCodeMetaDataList
+                            .get(ACCESS_RIGHTS_INDEX)));
 
             elements.add(element);
         }
@@ -114,13 +114,13 @@ public class GetAssociationLnObjectsCommandExecutor implements CommandExecutor<V
 
         @SuppressWarnings("unchecked")
         final AttributeAccessDescriptorDto attributeAccessDescriptor = this
-                .convertAttributeAccessDescriptor((List<DataObject>) accessRights.get(
-                        ACCESS_RIGHTS_ATTRIBUTE_ACCESS_INDEX).value());
+        .convertAttributeAccessDescriptor((List<DataObject>) accessRights.get(
+                ACCESS_RIGHTS_ATTRIBUTE_ACCESS_INDEX).value());
 
         @SuppressWarnings("unchecked")
         final MethodAccessDescriptorDto methodAccessDescriptor = this
-                .convertMethodAttributeAccessDescriptor((List<DataObject>) accessRights.get(
-                        ACCESS_RIGHTS_METHOD_ACCESS_INDEX).value());
+        .convertMethodAttributeAccessDescriptor((List<DataObject>) accessRights.get(
+                ACCESS_RIGHTS_METHOD_ACCESS_INDEX).value());
 
         return new AccessRightDto(attributeAccessDescriptor, methodAccessDescriptor);
     }
@@ -145,7 +145,7 @@ public class GetAssociationLnObjectsCommandExecutor implements CommandExecutor<V
                     attributeAccessItem.get(ACCESS_RIGHTS_ATTRIBUTE_ACCESS_ATTRIBUTE_ID_INDEX), "").intValue(),
                     AttributeAccessModeTypeDto.values()[this.dlmsHelperService.readLong(
                             attributeAccessItem.get(ACCESS_RIGHTS_ATTRIBUTE_ACCESS_ACCESS_MODE_INDEX), "").intValue()],
-                    asl));
+                            asl));
         }
 
         return new AttributeAccessDescriptorDto(attributeAccessItems);

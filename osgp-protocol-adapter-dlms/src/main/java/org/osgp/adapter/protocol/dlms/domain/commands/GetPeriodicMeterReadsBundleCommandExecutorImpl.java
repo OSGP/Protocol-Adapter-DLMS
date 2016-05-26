@@ -16,18 +16,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsRequestDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsRequestDataDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsRequestDto;
 
 @Component()
 public class GetPeriodicMeterReadsBundleCommandExecutorImpl extends
-BundleCommandExecutor<PeriodicMeterReadsRequestDataDto, ActionResponseDto> implements
-GetPeriodicMeterReadsBundleCommandExecutor {
+        BundleCommandExecutor<PeriodicMeterReadsRequestDataDto, ActionResponseDto> implements
+        GetPeriodicMeterReadsBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetPeriodicMeterReadsBundleCommandExecutorImpl.class);
 
     @Autowired
-    GetPeriodicMeterReadsCommandExecutor getPeriodicMeterReadsCommandExecutor;
+    private GetPeriodicMeterReadsCommandExecutor getPeriodicMeterReadsCommandExecutor;
 
     public GetPeriodicMeterReadsBundleCommandExecutorImpl() {
         super(PeriodicMeterReadsRequestDataDto.class);

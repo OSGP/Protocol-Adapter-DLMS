@@ -40,23 +40,23 @@ public class AdhocService {
     // === REQUEST Synchronize Time DATA ===
 
     public void synchronizeTime(final ClientConnection conn, final DlmsDevice device) throws ProtocolAdapterException {
-        this.synchronizeTimeCommandExecutor.execute(conn, device, null);
+        this.synchronizeTimeCommandExecutor.execute(conn, device);
     }
 
     public String retrieveConfigurationObjects(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
-        return this.retrieveConfigurationObjectsCommandExecutor.execute(conn, device, null);
+        return this.retrieveConfigurationObjectsCommandExecutor.execute(conn, device);
     }
 
     public AssociationLnListTypeDto getAssociationLnObjects(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
-        return this.getAssociationLnObjectsCommandExecutor.execute(conn, device, null);
+        return this.getAssociationLnObjectsCommandExecutor.execute(conn, device);
     }
 
     public Serializable getSpecificConfigurationObject(final ClientConnection conn, final DlmsDevice device,
             final SpecificConfigurationObjectRequestDto specificConfigurationObjectRequestDataDto)
-                    throws ProtocolAdapterException {
+            throws ProtocolAdapterException {
         return this.getSpecificConfigurationObjectCommandExecutor.execute(conn, device,
                 specificConfigurationObjectRequestDataDto);
     }

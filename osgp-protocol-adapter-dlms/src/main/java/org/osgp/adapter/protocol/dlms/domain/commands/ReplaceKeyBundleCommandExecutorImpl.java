@@ -21,23 +21,24 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SetKeysRequestDto;
 
 @Component
-public class ReplaceKeyBundleCommandExecutorImpl extends BundleCommandExecutor<SetKeysRequestDto, ActionResponseDto> implements
-        ReplaceKeyBundleCommandExecutor {
+public class ReplaceKeyBundleCommandExecutorImpl extends BundleCommandExecutor<SetKeysRequestDto, ActionResponseDto>
+        implements ReplaceKeyBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplaceKeyBundleCommandExecutorImpl.class);
 
     private static final String REPLACE_KEYS = "Replace keys for device: ";
     private static final String WAS_SUCCESFULL = " was successful";
-    
+
     @Autowired
-    ReplaceKeyCommandExecutor replaceKeyCommandExecutor;
+    private ReplaceKeyCommandExecutor replaceKeyCommandExecutor;
 
     public ReplaceKeyBundleCommandExecutorImpl() {
         super(SetKeysRequestDto.class);
     }
 
     @Override
-    public ActionResponseDto execute(final ClientConnection conn, final DlmsDevice device, final SetKeysRequestDto keySetDto) {
+    public ActionResponseDto execute(final ClientConnection conn, final DlmsDevice device,
+            final SetKeysRequestDto keySetDto) {
 
         // Add the // Change AUTHENTICATION key.
         LOGGER.info("Keys to set on the device {}: {}", device.getDeviceIdentification(), keySetDto);

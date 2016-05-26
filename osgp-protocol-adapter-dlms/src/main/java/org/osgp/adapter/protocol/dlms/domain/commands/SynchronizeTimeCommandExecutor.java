@@ -23,7 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component()
-public class SynchronizeTimeCommandExecutor implements CommandExecutor<DataObject, AccessResultCode> {
+public class SynchronizeTimeCommandExecutor extends CommandExecutorNoInput<AccessResultCode> {
 
     private static final int CLASS_ID = 8;
     private static final ObisCode OBIS_CODE = new ObisCode("0.0.1.0.0.255");
@@ -33,7 +33,7 @@ public class SynchronizeTimeCommandExecutor implements CommandExecutor<DataObjec
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public AccessResultCode execute(final ClientConnection conn, final DlmsDevice device, final DataObject object)
+    public AccessResultCode execute(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
         final AttributeAddress clockTime = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
 

@@ -13,7 +13,7 @@ import org.openmuc.jdlms.AttributeAddress;
 import org.openmuc.jdlms.GetResult;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 
-public class GetPushSetupCommandExecutor {
+public abstract class GetPushSetupCommandExecutor<R> extends CommandExecutorNoInput<R> {
 
     protected static final int CLASS_ID = 40;
     protected static final int ATTRIBUTE_ID_PUSH_OBJECT_LIST = 2;

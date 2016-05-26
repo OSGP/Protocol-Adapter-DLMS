@@ -24,8 +24,7 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.CosemObisCodeDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupSmsDto;
 
 @Component()
-public class GetPushSetupSmsCommandExecutor extends GetPushSetupCommandExecutor implements
-CommandExecutor<Void, PushSetupSmsDto> {
+public class GetPushSetupSmsCommandExecutor extends GetPushSetupCommandExecutor<PushSetupSmsDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetPushSetupSmsCommandExecutor.class);
     private static final ObisCode OBIS_CODE = new ObisCode("0.2.25.9.0.255");
@@ -45,7 +44,7 @@ CommandExecutor<Void, PushSetupSmsDto> {
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public PushSetupSmsDto execute(final ClientConnection conn, final DlmsDevice device, final Void useless)
+    public PushSetupSmsDto execute(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
         LOGGER.info("Retrieving Push Setup Alarm");

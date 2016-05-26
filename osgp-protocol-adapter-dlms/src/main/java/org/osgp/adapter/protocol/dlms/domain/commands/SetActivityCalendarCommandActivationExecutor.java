@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component()
-public class SetActivityCalendarCommandActivationExecutor implements CommandExecutor<Void, MethodResultCode> {
+public class SetActivityCalendarCommandActivationExecutor extends CommandExecutorNoInput<MethodResultCode> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SetActivityCalendarCommandActivationExecutor.class);
 
@@ -32,7 +32,7 @@ public class SetActivityCalendarCommandActivationExecutor implements CommandExec
     private static final int METHOD_ID_ACTIVATE_PASSIVE_CALENDAR = 1;
 
     @Override
-    public MethodResultCode execute(final ClientConnection conn, final DlmsDevice device, final Void v)
+    public MethodResultCode execute(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
         LOGGER.info("ACTIVATING PASSIVE CALENDAR");

@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 import com.alliander.osgp.dto.valueobjects.FirmwareVersionDto;
 
 @Component
-public class GetFirmwareVersionsCommandExecutor implements CommandExecutor<Void, List<FirmwareVersionDto>> {
+public class GetFirmwareVersionsCommandExecutor extends CommandExecutorNoInput<List<FirmwareVersionDto>> {
 
     private static final int CLASS_ID = 1;
     private static final int ATTRIBUTE_ID = 2;
@@ -36,9 +36,9 @@ public class GetFirmwareVersionsCommandExecutor implements CommandExecutor<Void,
     private static final ObisCode OBIS_CODE_COMMUNICATION_MODULE_ACTIVE_FIRMWARE_VERSION = new ObisCode("1.2.0.2.0.255");
 
     private static final AttributeAddress[] ATTRIBUTE_ADDRESSES = {
-        new AttributeAddress(CLASS_ID, OBIS_CODE_ACTIVE_FIRMWARE_VERSION, ATTRIBUTE_ID),
-        new AttributeAddress(CLASS_ID, OBIS_CODE_MODULE_ACTIVE_FIRMWARE_VERSION, ATTRIBUTE_ID),
-        new AttributeAddress(CLASS_ID, OBIS_CODE_COMMUNICATION_MODULE_ACTIVE_FIRMWARE_VERSION, ATTRIBUTE_ID) };
+            new AttributeAddress(CLASS_ID, OBIS_CODE_ACTIVE_FIRMWARE_VERSION, ATTRIBUTE_ID),
+            new AttributeAddress(CLASS_ID, OBIS_CODE_MODULE_ACTIVE_FIRMWARE_VERSION, ATTRIBUTE_ID),
+            new AttributeAddress(CLASS_ID, OBIS_CODE_COMMUNICATION_MODULE_ACTIVE_FIRMWARE_VERSION, ATTRIBUTE_ID) };
 
     private static final int INDEX_ACTIVE_FIRMWARE_VERSION = 0;
     private static final int INDEX_MODULE_ACTIVE_FIRMWARE_VERSION = 1;
@@ -48,7 +48,7 @@ public class GetFirmwareVersionsCommandExecutor implements CommandExecutor<Void,
     private DlmsHelperService dlmsHelperService;
 
     @Override
-    public List<FirmwareVersionDto> execute(final ClientConnection conn, final DlmsDevice device, final Void useless)
+    public List<FirmwareVersionDto> execute(final ClientConnection conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
         final List<FirmwareVersionDto> resultList = new ArrayList<>();

@@ -21,14 +21,14 @@ import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsReque
 
 @Component()
 public class GetPeriodicMeterReadsGasBundleCommandExecutorImpl extends
-BundleCommandExecutor<PeriodicMeterReadsGasRequestDto, ActionResponseDto> implements
-GetPeriodicMeterReadsGasBundleCommandExecutor {
+        BundleCommandExecutor<PeriodicMeterReadsGasRequestDto, ActionResponseDto> implements
+        GetPeriodicMeterReadsGasBundleCommandExecutor {
 
     private static final Logger LOGGER = LoggerFactory
             .getLogger(GetPeriodicMeterReadsGasBundleCommandExecutorImpl.class);
 
     @Autowired
-    GetPeriodicMeterReadsGasCommandExecutor getPeriodicMeterReadsGasCommandExecutor;
+    private GetPeriodicMeterReadsGasCommandExecutor getPeriodicMeterReadsGasCommandExecutor;
 
     public GetPeriodicMeterReadsGasBundleCommandExecutorImpl() {
         super(PeriodicMeterReadsGasRequestDto.class);
