@@ -39,7 +39,7 @@ public class ProtocolAdapterDlmsInitializer implements WebApplicationInitializer
             final Context initialContext = new InitialContext();
 
             final String logLocation = (String) initialContext
-                    .lookup("java:comp/env/osp/osgpAdapterProtocolDlms/log-config");
+                    .lookup("java:comp/env/osgp/AdapterProtocolDlms/log-config");
             LogbackConfigurer.initLogging(logLocation);
 
             final AnnotationConfigWebApplicationContext rootContext = new AnnotationConfigWebApplicationContext();

@@ -14,11 +14,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.annotation.PropertySources;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
 @EnableTransactionManagement()
-@PropertySource("file:${osp/osgpAdapterProtocolDlms/config}")
+@PropertySources({
+	@PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
+	@PropertySource(value = "${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
+	@PropertySource(value = "${osgp/Global/config}", ignoreResourceNotFound = true),
+})
 public class SimulatorTriggerConfig {
 
     @Value("${web.service.truststore.location}")
