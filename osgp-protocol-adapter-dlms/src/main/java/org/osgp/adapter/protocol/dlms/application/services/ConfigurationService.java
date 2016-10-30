@@ -10,13 +10,10 @@ package org.osgp.adapter.protocol.dlms.application.services;
 import java.util.List;
 
 import org.openmuc.jdlms.AccessResultCode;
-import org.openmuc.jdlms.DlmsConnection;
 import org.osgp.adapter.protocol.dlms.application.models.ProtocolMeterInfo;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetAdministrativeStatusCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetFirmwareVersionsCommandExecutor;
-import org.osgp.adapter.protocol.dlms.domain.commands.GetPushSetupSmsCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.ReplaceKeyCommandExecutor;
-import org.osgp.adapter.protocol.dlms.domain.commands.SetActivityCalendarCommandActivationExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SetActivityCalendarCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SetAdministrativeStatusCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SetAlarmNotificationsCommandExecutor;
@@ -25,9 +22,10 @@ import org.osgp.adapter.protocol.dlms.domain.commands.SetEncryptionKeyExchangeOn
 import org.osgp.adapter.protocol.dlms.domain.commands.SetPushSetupAlarmCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SetPushSetupSmsCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SetSpecialDaysCommandExecutor;
+import org.osgp.adapter.protocol.dlms.domain.commands.UpdateFirmwareCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
 import org.osgp.adapter.protocol.dlms.domain.entities.SecurityKeyType;
-import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionFactory;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,9 +60,6 @@ public class ConfigurationService {
     private DomainHelperService domainHelperService;
 
     @Autowired
-    private DlmsConnectionFactory dlmsConnectionFactory;
-
-    @Autowired
     private SetSpecialDaysCommandExecutor setSpecialDaysCommandExecutor;
 
     @Autowired
@@ -77,9 +72,6 @@ public class ConfigurationService {
     private SetPushSetupAlarmCommandExecutor setPushSetupAlarmCommandExecutor;
 
     @Autowired
-    private GetPushSetupSmsCommandExecutor getPushSetupSmsCommandExecutor;
-
-    @Autowired
     private SetPushSetupSmsCommandExecutor setPushSetupSmsCommandExecutor;
 
     @Autowired
@@ -87,9 +79,6 @@ public class ConfigurationService {
 
     @Autowired
     private SetEncryptionKeyExchangeOnGMeterCommandExecutor setEncryptionKeyExchangeOnGMeterCommandExecutor;
-
-    @Autowired
-    private SetActivityCalendarCommandActivationExecutor setActivityCalendarCommandActivationExecutor;
 
     @Autowired
     private SetAdministrativeStatusCommandExecutor setAdministrativeStatusCommandExecutor;
@@ -103,7 +92,10 @@ public class ConfigurationService {
     @Autowired
     private ReplaceKeyCommandExecutor replaceKeyCommandExecutor;
 
-    public void requestSpecialDays(final DlmsConnection conn, final DlmsDevice device,
+    @Autowired
+    private UpdateFirmwareCommandExecutor updateFirmwareCommandExecutor;
+
+    public void setSpecialDays(final DlmsConnectionHolder conn, final DlmsDevice device,
             final SpecialDaysRequestDto specialDaysRequest) throws ProtocolAdapterException {
 
         // The Special days towards the Smart Meter
@@ -126,7 +118,7 @@ public class ConfigurationService {
 
     // === REQUEST Configuration Object DATA ===
 
-    public void requestSetConfiguration(final DlmsConnection conn, final DlmsDevice device,
+    public void requestSetConfiguration(final DlmsConnectionHolder conn, final DlmsDevice device,
             final SetConfigurationObjectRequestDto setConfigurationObjectRequest) throws ProtocolAdapterException {
 
         // Configuration Object towards the Smart Meter
@@ -155,7 +147,7 @@ public class ConfigurationService {
 
     }
 
-    public void requestSetAdministrativeStatus(final DlmsConnection conn, final DlmsDevice device,
+    public void requestSetAdministrativeStatus(final DlmsConnectionHolder conn, final DlmsDevice device,
             final AdministrativeStatusTypeDto administrativeStatusType) throws ProtocolAdapterException {
 
         LOGGER.info("Device for Set Administrative Status is: {}", device);
@@ -168,7 +160,7 @@ public class ConfigurationService {
         }
     }
 
-    public void setAlarmNotifications(final DlmsConnection conn, final DlmsDevice device,
+    public void setAlarmNotifications(final DlmsConnectionHolder conn, final DlmsDevice device,
             final AlarmNotificationsDto alarmNotifications) throws ProtocolAdapterException {
 
         LOGGER.info("Alarm Notifications to set on the device: {}", alarmNotifications);
@@ -181,13 +173,13 @@ public class ConfigurationService {
         }
     }
 
-    public AdministrativeStatusTypeDto requestGetAdministrativeStatus(final DlmsConnection conn, final DlmsDevice device)
-            throws ProtocolAdapterException {
+    public AdministrativeStatusTypeDto requestGetAdministrativeStatus(final DlmsConnectionHolder conn,
+            final DlmsDevice device) throws ProtocolAdapterException {
 
         return this.getAdministrativeStatusCommandExecutor.execute(conn, device, null);
     }
 
-    public String setEncryptionKeyExchangeOnGMeter(final DlmsConnection conn, final DlmsDevice device,
+    public String setEncryptionKeyExchangeOnGMeter(final DlmsConnectionHolder conn, final DlmsDevice device,
             final GMeterInfoDto gMeterInfo) throws ProtocolAdapterException {
 
         LOGGER.info("Device for Set Encryption Key Exchange On G-Meter is: {}", device);
@@ -202,14 +194,14 @@ public class ConfigurationService {
         final ProtocolMeterInfo protocolMeterInfo = new ProtocolMeterInfo(gMeterInfo.getChannel(),
                 gMeterInfo.getDeviceIdentification(), gMeterDevice.getValidSecurityKey(
                         SecurityKeyType.G_METER_ENCRYPTION).getKey(), gMeterDevice.getValidSecurityKey(
-                                SecurityKeyType.G_METER_MASTER).getKey());
+                        SecurityKeyType.G_METER_MASTER).getKey());
 
         this.setEncryptionKeyExchangeOnGMeterCommandExecutor.execute(conn, device, protocolMeterInfo);
 
         return "Set Encryption Key Exchange On G-Meter Result is OK for device id: " + device.getDeviceIdentification();
     }
 
-    public String setActivityCalendar(final DlmsConnection conn, final DlmsDevice device,
+    public String setActivityCalendar(final DlmsConnectionHolder conn, final DlmsDevice device,
             final ActivityCalendarDto activityCalendar) throws ProtocolAdapterException {
 
         LOGGER.info("Device for Activity Calendar is: {}", device);
@@ -221,7 +213,7 @@ public class ConfigurationService {
 
     }
 
-    public void setPushSetupAlarm(final DlmsConnection conn, final DlmsDevice device,
+    public void setPushSetupAlarm(final DlmsConnectionHolder conn, final DlmsDevice device,
             final PushSetupAlarmDto pushSetupAlarm) throws ProtocolAdapterException {
 
         LOGGER.info("Push Setup Alarm to set on the device: {}", pushSetupAlarm);
@@ -235,8 +227,8 @@ public class ConfigurationService {
         }
     }
 
-    public void setPushSetupSms(final DlmsConnection conn, final DlmsDevice device, final PushSetupSmsDto pushSetupSms)
-            throws ProtocolAdapterException {
+    public void setPushSetupSms(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final PushSetupSmsDto pushSetupSms) throws ProtocolAdapterException {
 
         LOGGER.info("Push Setup Sms to set on the device: {}", pushSetupSms);
 
@@ -250,13 +242,13 @@ public class ConfigurationService {
 
     }
 
-    public List<FirmwareVersionDto> requestFirmwareVersion(final DlmsConnection conn, final DlmsDevice device)
+    public List<FirmwareVersionDto> requestFirmwareVersion(final DlmsConnectionHolder conn, final DlmsDevice device)
             throws ProtocolAdapterException {
 
         return this.getFirmwareVersionCommandExecutor.execute(conn, device, null);
     }
 
-    public void replaceKeys(final DlmsConnection conn, final DlmsDevice device, final SetKeysRequestDto keySet)
+    public void replaceKeys(final DlmsConnectionHolder conn, final DlmsDevice device, final SetKeysRequestDto keySet)
             throws ProtocolAdapterException {
 
         try {
@@ -270,6 +262,13 @@ public class ConfigurationService {
             LOGGER.error("Unexpected exception during replaceKeys.", e);
             throw e;
         }
+    }
+
+    public List<FirmwareVersionDto> updateFirmware(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final String firmwareIdentifier) throws ProtocolAdapterException {
+        LOGGER.info("Updating firmware of device {} to firmware with identifier {}", device, firmwareIdentifier);
+
+        return this.updateFirmwareCommandExecutor.execute(conn, device, firmwareIdentifier);
     }
 
 }

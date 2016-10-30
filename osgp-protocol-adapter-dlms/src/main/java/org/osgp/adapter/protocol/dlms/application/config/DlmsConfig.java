@@ -132,15 +132,12 @@ public class DlmsConfig {
     }
 
     @Bean
-    @Scope("prototype")
     @Autowired
     public Hls5Connector hls5Connector(final RecoverKeyProcessInitiator recoverKeyProcessInitiator,
-            final DlmsDeviceRepository dlmsDeviceRepository,
             @Value("${jdlms.response_timeout}") final int responseTimeout,
             @Value("${jdlms.logical_device_address}") final int logicalDeviceAddress,
             @Value("${jdlms.client_access_point}") final int clientAccessPoint) {
-        return new Hls5Connector(recoverKeyProcessInitiator, dlmsDeviceRepository, responseTimeout,
-                logicalDeviceAddress, clientAccessPoint);
+        return new Hls5Connector(recoverKeyProcessInitiator, responseTimeout, logicalDeviceAddress, clientAccessPoint);
     }
 
     @Bean

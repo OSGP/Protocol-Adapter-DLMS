@@ -12,10 +12,13 @@ import java.util.TimeZone;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
+import javax.naming.NameNotFoundException;
 import javax.naming.NamingException;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.WebApplicationInitializer;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
@@ -29,30 +32,31 @@ import ch.qos.logback.ext.spring.LogbackConfigurer;
  */
 public class ProtocolAdapterDlmsInitializer implements WebApplicationInitializer {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApplicationContext.class);
+
     @Override
     public void onStartup(final ServletContext servletContext) throws ServletException {
+        // Force the timezone of application to UTC (required for
+        // Hibernate/JDBC)
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+
+        Context initialContext;
         try {
-            // Force the timezone of application to UTC (required for
-            // Hibernate/JDBC)
-            TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-
-            final Context initialContext = new InitialContext();
-
+            initialContext = new InitialContext();
             final String logLocation = (String) initialContext
                     .lookup("java:comp/env/osgp/AdapterProtocolDlms/log-config");
             LogbackConfigurer.initLogging(logLocation);
-
-            final AnnotationConfigWebApplicationContext rootContext = new AnnotationConfigWebApplicationContext();
-            rootContext.register(ApplicationContext.class);
-
-            servletContext.addListener(new ContextLoaderListener(rootContext));
-
+        } catch (final NameNotFoundException | FileNotFoundException | JoranException e) {
+            // Do nothing, if the file referred in context.xml is not found,
+            // the default logback.xml will be used.
+            LOGGER.info("Using classpath logback.xml");
         } catch (final NamingException e) {
             throw new ServletException("naming exception", e);
-        } catch (final FileNotFoundException e) {
-            throw new ServletException("Logging file not found", e);
-        } catch (final JoranException e) {
-            throw new ServletException("Logback exception", e);
         }
+        
+        final AnnotationConfigWebApplicationContext rootContext = new AnnotationConfigWebApplicationContext();
+        rootContext.register(ApplicationContext.class);
+
+        servletContext.addListener(new ContextLoaderListener(rootContext));
     }
 }

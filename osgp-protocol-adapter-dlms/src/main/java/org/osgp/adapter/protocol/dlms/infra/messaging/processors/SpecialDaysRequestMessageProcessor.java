@@ -9,9 +9,9 @@ package org.osgp.adapter.protocol.dlms.infra.messaging.processors;
 
 import java.io.Serializable;
 
-import org.openmuc.jdlms.DlmsConnection;
 import org.osgp.adapter.protocol.dlms.application.services.ConfigurationService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageProcessor;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
@@ -32,15 +32,15 @@ public class SpecialDaysRequestMessageProcessor extends DeviceRequestMessageProc
     private ConfigurationService configurationService;
 
     public SpecialDaysRequestMessageProcessor() {
-        super(DeviceRequestMessageType.REQUEST_SPECIAL_DAYS);
+        super(DeviceRequestMessageType.SET_SPECIAL_DAYS);
     }
 
     @Override
-    protected Serializable handleMessage(final DlmsConnection conn, final DlmsDevice device,
+    protected Serializable handleMessage(final DlmsConnectionHolder conn, final DlmsDevice device,
             final Serializable requestObject) throws OsgpException, ProtocolAdapterException, SessionProviderException {
         final SpecialDaysRequestDto specialDaysRequest = (SpecialDaysRequestDto) requestObject;
 
-        this.configurationService.requestSpecialDays(conn, device, specialDaysRequest);
+        this.configurationService.setSpecialDays(conn, device, specialDaysRequest);
         return null;
     }
 }
