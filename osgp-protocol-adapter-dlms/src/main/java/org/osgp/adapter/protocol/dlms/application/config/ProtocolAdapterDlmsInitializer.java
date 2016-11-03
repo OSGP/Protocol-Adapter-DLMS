@@ -24,7 +24,7 @@ public class ProtocolAdapterDlmsInitializer extends AbstractApplicationInitializ
     }
     
     /**
-     * 
+     * Handles the start of the spring boot.
      */
     @Override
     public void onStartup(final ServletContext servletContext) throws ServletException {

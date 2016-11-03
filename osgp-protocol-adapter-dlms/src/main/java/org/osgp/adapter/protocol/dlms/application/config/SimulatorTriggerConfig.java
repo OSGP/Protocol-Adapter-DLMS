@@ -19,28 +19,26 @@ import org.springframework.context.annotation.PropertySources;
 import com.alliander.osgp.shared.application.config.AbstractConfig;
 
 @Configuration
-@PropertySources({
-	@PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
-	@PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
-	@PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
-})
+@PropertySources({ @PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
+		@PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
+		@PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true), })
 public class SimulatorTriggerConfig extends AbstractConfig {
 
-    @Value("${web.service.truststore.location}")
-    private String truststoreLocation;
-    
-    @Value("${web.service.truststore.password}")
-    private String truststorePassword;
-    
-    @Value("${web.service.truststore.type}")
-    private String truststoreType;
-    
-    @Value("${triggered.simulator.url}")
-    private String baseAddress;
+	@Value("${web.service.truststore.location}")
+	private String truststoreLocation;
 
-    @Bean
-    public SimulatorTriggerClient simulatorTriggerClient() throws SimulatorTriggerClientException {
-        return new SimulatorTriggerClient(this.truststoreLocation, this.truststorePassword, this.truststoreType,
-                this.baseAddress);
-    }
+	@Value("${web.service.truststore.password}")
+	private String truststorePassword;
+
+	@Value("${web.service.truststore.type}")
+	private String truststoreType;
+
+	@Value("${triggered.simulator.url}")
+	private String baseAddress;
+
+	@Bean
+	public SimulatorTriggerClient simulatorTriggerClient() throws SimulatorTriggerClientException {
+		return new SimulatorTriggerClient(this.truststoreLocation, this.truststorePassword, this.truststoreType,
+				this.baseAddress);
+	}
 }
