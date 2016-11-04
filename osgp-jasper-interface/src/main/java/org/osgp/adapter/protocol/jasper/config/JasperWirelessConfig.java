@@ -33,13 +33,12 @@ import org.springframework.ws.soap.security.wss4j.Wss4jSecurityInterceptor;
 
 /**
  * An application context Java configuration class for Jasper Wireless settings.
- * The usage of Java configuration requires Spring Framework 3.0
  */
 @Configuration
 @PropertySources({ 
 	@PropertySource("classpath:jasper-interface.properties"),
+    @PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
 	@PropertySource(value = "file:${osgp/JasperInterface/config}", ignoreResourceNotFound = true),
-	@PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
 })
 @ComponentScan(basePackages = { "org.osgp.adapter.protocol.jasper" })
 public class JasperWirelessConfig {

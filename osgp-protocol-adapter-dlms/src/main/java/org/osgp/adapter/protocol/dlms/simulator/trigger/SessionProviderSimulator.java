@@ -40,8 +40,8 @@ import com.alliander.osgp.shared.exceptionhandling.FunctionalException;
 @Component
 @PropertySources({
 	@PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
-	@PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
 	@PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
+    @PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
 })
 public class SessionProviderSimulator extends SessionProvider {
 

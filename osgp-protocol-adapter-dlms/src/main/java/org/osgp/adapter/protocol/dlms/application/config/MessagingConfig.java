@@ -32,18 +32,19 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+import com.alliander.osgp.shared.application.config.AbstractConfig;
+
 /**
- * An application context Java configuration class. The usage of Java
- * configuration requires Spring Framework 3.0
+ * An application context Java configuration class.
  */
 @Configuration
 @EnableTransactionManagement()
 @PropertySources({
 	@PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
+    @PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
 	@PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
-	@PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
 })
-public class MessagingConfig {
+public class MessagingConfig extends AbstractConfig {
 
     // JMS Settings
     private static final String PROPERTY_NAME_JMS_ACTIVEMQ_BROKER_URL = "jms.activemq.broker.url";

@@ -11,7 +11,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.annotation.Resource;
 import javax.inject.Provider;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -42,8 +41,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.PropertySources;
 import org.springframework.context.annotation.Scope;
-import org.springframework.core.env.Environment;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import com.alliander.osgp.shared.application.config.AbstractConfig;
 
 /**
  * An application context Java configuration class. The usage of Java
@@ -53,16 +53,13 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement()
 @PropertySources({
 	@PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
+    @PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
 	@PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true),
-	@PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
 })
-public class DlmsConfig {
+public class DlmsConfig extends AbstractConfig {
     private static final String PROPERTY_NAME_DLMS_PORT_SERVER = "dlms.port.server";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DlmsConfig.class);
-
-    @Resource
-    private Environment environment;
 
     public DlmsConfig() {
         InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
