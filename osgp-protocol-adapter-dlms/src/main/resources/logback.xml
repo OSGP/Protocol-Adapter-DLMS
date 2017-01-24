@@ -41,7 +41,6 @@
     <appender-ref ref="CONSOLE" />
   </logger>
 
-  <logger name="com.alliander.osgp" level="debug"/>
   <root level="INFO" additivity="false">
     <appender-ref ref="CONSOLE"/>
     <appender-ref ref="FILE"/>
