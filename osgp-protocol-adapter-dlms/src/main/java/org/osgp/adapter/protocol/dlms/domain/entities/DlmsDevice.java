@@ -43,6 +43,9 @@ public class DlmsDevice extends AbstractEntity {
     private String iccId;
 
     @Column
+    private boolean lls1Active = true;
+
+    @Column
     private boolean hls3Active;
 
     @Column
@@ -53,7 +56,7 @@ public class DlmsDevice extends AbstractEntity {
 
     @OneToMany(mappedBy = "dlmsDevice", fetch = FetchType.EAGER, cascade = { CascadeType.ALL })
     @Cascade(org.hibernate.annotations.CascadeType.DELETE_ORPHAN)
-    private List<SecurityKey> securityKeys = new ArrayList<>();
+    private final List<SecurityKey> securityKeys = new ArrayList<>();
 
     @Column
     private Integer challengeLength;
@@ -66,6 +69,28 @@ public class DlmsDevice extends AbstractEntity {
 
     @Column
     private boolean ipAddressIsStatic;
+
+    // The following three are optional columns that are used in the device
+    // simulator (DeviceServer)
+    @Column
+    private Long port;
+
+    @Column
+    private Long clientId;
+
+    @Column
+    private Long logicalId;
+
+    @Column
+    private boolean inDebugMode;
+
+    @Column
+    private boolean useHdlc;
+
+    @Column
+    private boolean useSn;
+
+    // -- This comes from: Core Device.
 
     @Transient
     private String ipAddress;
@@ -84,8 +109,10 @@ public class DlmsDevice extends AbstractEntity {
 
     @Override
     public String toString() {
-        return String.format("DlmsDevice[deviceId=%s, hls3=%b, hls4=%b, hls5=%b, ipAddress=%s]",
-                this.deviceIdentification, this.hls3Active, this.hls4Active, this.hls5Active, this.ipAddress);
+        return String.format(
+                "DlmsDevice[deviceId=%s, lls1=%b, hls3=%b, hls4=%b, hls5=%b, ipAddress=%s, port=%s, logicalId=%s, clientId=%s]",
+                this.deviceIdentification, this.lls1Active, this.hls3Active, this.hls4Active, this.hls5Active, this.ipAddress, this.port,
+                this.logicalId, this.clientId);
     }
 
     @Override
@@ -142,6 +169,14 @@ public class DlmsDevice extends AbstractEntity {
 
     public String getIccId() {
         return this.iccId;
+    }
+
+    public boolean isLls1Active() {
+        return this.lls1Active;
+    }
+
+    public void setLls1Active(final boolean lls1Active) {
+        this.lls1Active = lls1Active;
     }
 
     public boolean isHls3Active() {
@@ -202,6 +237,54 @@ public class DlmsDevice extends AbstractEntity {
 
     public void addSecurityKey(final SecurityKey securityKey) {
         this.securityKeys.add(securityKey);
+    }
+
+    public Long getPort() {
+        return this.port;
+    }
+
+    public void setPort(final Long port) {
+        this.port = port;
+    }
+
+    public Long getClientId() {
+        return this.clientId;
+    }
+
+    public void setClientId(final Long clientId) {
+        this.clientId = clientId;
+    }
+
+    public Long getLogicalId() {
+        return this.logicalId;
+    }
+
+    public void setLogicalId(final Long logicalId) {
+        this.logicalId = logicalId;
+    }
+
+    public boolean isInDebugMode() {
+        return this.inDebugMode;
+    }
+
+    public void setInDebugMode(final boolean inDebugMode) {
+        this.inDebugMode = inDebugMode;
+    }
+
+    public boolean isUseHdlc() {
+        return this.useHdlc;
+    }
+
+    public void setUseHdlc(final boolean useHdlc) {
+        this.useHdlc = useHdlc;
+    }
+
+    public boolean isUseSn() {
+        return this.useSn;
+    }
+
+    public void setUseSn(final boolean useSn) {
+        this.useSn = useSn;
     }
 
     /**
@@ -301,6 +384,10 @@ public class DlmsDevice extends AbstractEntity {
         if (!keys.isEmpty()) {
             this.getSecurityKeys().removeAll(keys);
         }
+    }
+
+    public boolean communicateUnencrypted() {
+        return !(this.hls3Active || this.hls4Active || this.hls5Active);
     }
 
     /**

@@ -2,7 +2,7 @@
 
 ### Build Status
 
-[![Build Status](http://54.77.62.182/job/OSGP_Protocol-Adapter-DLMS_master/badge/icon?style=plastic)](http://54.77.62.182/job/OSGP_Protocol-Adapter-DLMS_master)
+[![Build Status](http://ci.opensmartgridplatform.org/job/OSGP_Protocol-Adapter-DLMS_development/badge/icon?style=plastic)](http://ci.opensmartgridplatform.org/job/OSGP_Protocol-Adapter-DLMS_development)
 
 ### Component Description
 
@@ -24,3 +24,14 @@ To communicate with Smart Meters that understand DLMS/COSEM you will need to inc
 The jDLMS library is developed by the department "Intelligent Energy Systems" at the Fraunhofer Institute for Solar Energy Systems in Freiburg, Germany.
 
 jDLMS is licensed under the GPLv3, more information can be found on the OpenMUC web site: https://www.openmuc.org/index.php?id=42
+
+## Open smart grid platform information and news
+
+High-level project information and news can be found on the open smart grid platform website: 
+* [www.opensmartgridplatform.org](http://opensmartgridplatform.org/)
+
+Open smart grid platform detailed documentation:
+* [documentation.opensmartgridplatform.org/](http://documentation.opensmartgridplatform.org/)
+
+Open smart grid platform issue tracker:
+* [Open smart grid platform Jira](https://smartsocietyservices.atlassian.net/projects/OC/issues/)

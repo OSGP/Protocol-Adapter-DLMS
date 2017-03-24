@@ -11,12 +11,12 @@ import java.io.IOException;
 
 import org.openmuc.jdlms.AccessResultCode;
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.SetParameter;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.application.mapping.ConfigurationMapper;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
@@ -24,11 +24,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.AdministrativeStatusType;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AdministrativeStatusTypeDataDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AdministrativeStatusTypeDto;
 
 @Component()
-public class SetAdministrativeStatusCommandExecutor implements
-        CommandExecutor<AdministrativeStatusType, AccessResultCode> {
+public class SetAdministrativeStatusCommandExecutor extends
+        AbstractCommandExecutor<AdministrativeStatusTypeDto, AccessResultCode> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SetAdministrativeStatusCommandExecutor.class);
 
@@ -39,9 +42,31 @@ public class SetAdministrativeStatusCommandExecutor implements
     @Autowired
     private ConfigurationMapper configurationMapper;
 
+    public SetAdministrativeStatusCommandExecutor() {
+        super(AdministrativeStatusTypeDataDto.class);
+    }
+
     @Override
-    public AccessResultCode execute(final ClientConnection conn, final DlmsDevice device,
-            final AdministrativeStatusType administrativeStatusType) throws ProtocolAdapterException {
+    public AdministrativeStatusTypeDto fromBundleRequestInput(final ActionRequestDto bundleInput)
+            throws ProtocolAdapterException {
+
+        this.checkActionRequestType(bundleInput);
+        final AdministrativeStatusTypeDataDto administrativeStatusTypeDataDto = (AdministrativeStatusTypeDataDto) bundleInput;
+
+        return administrativeStatusTypeDataDto.getAdministrativeStatusType();
+    }
+
+    @Override
+    public ActionResponseDto asBundleResponse(final AccessResultCode executionResult) throws ProtocolAdapterException {
+
+        this.checkAccessResultCode(executionResult);
+
+        return new ActionResponseDto("Set administrative status was successful");
+    }
+
+    @Override
+    public AccessResultCode execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final AdministrativeStatusTypeDto administrativeStatusType) throws ProtocolAdapterException {
 
         LOGGER.info(
                 "Set administrative status by issuing get request for class id: {}, obis code: {}, attribute id: {}",
@@ -53,8 +78,11 @@ public class SetAdministrativeStatusCommandExecutor implements
 
         final SetParameter setParameter = new SetParameter(attributeAddress, value);
 
+        conn.getDlmsMessageListener().setDescription("SetAdminstrativeStatus to " + administrativeStatusType
+                + ", set attribute: " + JdlmsObjectToStringUtil.describeAttributes(attributeAddress));
+
         try {
-            return conn.set(setParameter).get(0);
+            return conn.getConnection().set(setParameter);
         } catch (final IOException e) {
             throw new ConnectionException(e);
         }

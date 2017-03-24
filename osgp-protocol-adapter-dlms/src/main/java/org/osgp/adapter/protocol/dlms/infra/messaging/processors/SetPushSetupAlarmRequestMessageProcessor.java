@@ -9,23 +9,23 @@ package org.osgp.adapter.protocol.dlms.infra.messaging.processors;
 
 import java.io.Serializable;
 
-import org.openmuc.jdlms.ClientConnection;
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.osgp.adapter.protocol.dlms.application.services.ConfigurationService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageProcessor;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
+import org.osgp.adapter.protocol.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupAlarm;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupAlarmDto;
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 
 /**
  * Class for processing set push setup alarm request messages
  */
-@Component("dlmsSetPushSetupAlarmRequestMessageProcessor")
+@Component
 public class SetPushSetupAlarmRequestMessageProcessor extends DeviceRequestMessageProcessor {
 
     @Autowired
@@ -36,9 +36,11 @@ public class SetPushSetupAlarmRequestMessageProcessor extends DeviceRequestMessa
     }
 
     @Override
-    protected Serializable handleMessage(final ClientConnection conn, final DlmsDevice device,
+    protected Serializable handleMessage(final DlmsConnectionHolder conn, final DlmsDevice device,
             final Serializable requestObject) throws OsgpException, ProtocolAdapterException, SessionProviderException {
-        final PushSetupAlarm pushSetupAlarm = (PushSetupAlarm) requestObject;
+        this.assertRequestObjectType(PushSetupAlarmDto.class, requestObject);
+
+        final PushSetupAlarmDto pushSetupAlarm = (PushSetupAlarmDto) requestObject;
         this.configurationService.setPushSetupAlarm(conn, device, pushSetupAlarm);
         return null;
     }

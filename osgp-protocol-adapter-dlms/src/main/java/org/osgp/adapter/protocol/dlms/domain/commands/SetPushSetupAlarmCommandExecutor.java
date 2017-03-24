@@ -8,51 +8,78 @@
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.openmuc.jdlms.AccessResultCode;
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.SetParameter;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupAlarm;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupAlarmDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.SetPushSetupAlarmRequestDto;
 
 @Component()
-public class SetPushSetupAlarmCommandExecutor extends SetPushSetupCommandExecutor implements
-CommandExecutor<PushSetupAlarm, AccessResultCode> {
+public class SetPushSetupAlarmCommandExecutor extends SetPushSetupCommandExecutor<PushSetupAlarmDto, AccessResultCode> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SetPushSetupAlarmCommandExecutor.class);
     private static final ObisCode OBIS_CODE = new ObisCode("0.1.25.9.0.255");
 
+    public SetPushSetupAlarmCommandExecutor() {
+        super(SetPushSetupAlarmRequestDto.class);
+    }
+
     @Override
-    public AccessResultCode execute(final ClientConnection conn, final DlmsDevice device,
-            final PushSetupAlarm pushSetupAlarm) throws ProtocolAdapterException {
+    public PushSetupAlarmDto fromBundleRequestInput(final ActionRequestDto bundleInput) throws ProtocolAdapterException {
+
+        this.checkActionRequestType(bundleInput);
+        final SetPushSetupAlarmRequestDto setPushSetupAlarmRequestDto = (SetPushSetupAlarmRequestDto) bundleInput;
+
+        return setPushSetupAlarmRequestDto.getPushSetupAlarm();
+    }
+
+    @Override
+    public ActionResponseDto asBundleResponse(final AccessResultCode executionResult) throws ProtocolAdapterException {
+
+        this.checkAccessResultCode(executionResult);
+
+        return new ActionResponseDto("Setting push setup alarm was successful");
+    }
+
+    @Override
+    public AccessResultCode execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final PushSetupAlarmDto pushSetupAlarm) throws ProtocolAdapterException {
 
         final SetParameter setParameterSendDestinationAndMethod = this.getSetParameter(pushSetupAlarm);
 
-        List<AccessResultCode> resultCodes;
+        conn.getDlmsMessageListener()
+                .setDescription("SetPushSetupAlarm configure send destination and method, set attribute: "
+                        + JdlmsObjectToStringUtil.describeAttributes(
+                                new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID_SEND_DESTINATION_AND_METHOD)));
+
+        AccessResultCode resultCode;
         try {
-            resultCodes = conn.set(setParameterSendDestinationAndMethod);
+            resultCode = conn.getConnection().set(setParameterSendDestinationAndMethod);
         } catch (final IOException e) {
             throw new ConnectionException(e);
         }
 
-        if (resultCodes != null && !resultCodes.isEmpty()) {
-            return resultCodes.get(0);
+        if (resultCode != null) {
+            return resultCode;
         } else {
             throw new ProtocolAdapterException("Error setting Alarm push setup data.");
         }
     }
 
-    private SetParameter getSetParameter(final PushSetupAlarm pushSetupAlarm) throws ProtocolAdapterException {
+    private SetParameter getSetParameter(final PushSetupAlarmDto pushSetupAlarm) throws ProtocolAdapterException {
 
         this.checkPushSetupAlarm(pushSetupAlarm);
 
@@ -62,7 +89,7 @@ CommandExecutor<PushSetupAlarm, AccessResultCode> {
         return new SetParameter(sendDestinationAndMethodAddress, value);
     }
 
-    private void checkPushSetupAlarm(final PushSetupAlarm pushSetupAlarm) throws ProtocolAdapterException {
+    private void checkPushSetupAlarm(final PushSetupAlarmDto pushSetupAlarm) throws ProtocolAdapterException {
         if (!pushSetupAlarm.hasSendDestinationAndMethod()) {
             LOGGER.error("Send Destination and Method of the Push Setup Alarm is expected to be set.");
             throw new ProtocolAdapterException("Error setting Alarm push setup data. No destination and method data");

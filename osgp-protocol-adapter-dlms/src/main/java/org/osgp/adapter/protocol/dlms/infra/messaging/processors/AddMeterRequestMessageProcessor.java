@@ -9,7 +9,6 @@ package org.osgp.adapter.protocol.dlms.infra.messaging.processors;
 
 import java.io.Serializable;
 
-import org.openmuc.jdlms.ClientConnection;
 import org.osgp.adapter.protocol.dlms.application.services.InstallationService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
@@ -18,13 +17,13 @@ import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.SmartMeteringDevice;
+import com.alliander.osgp.dto.valueobjects.smartmetering.SmartMeteringDeviceDto;
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 
 /**
  * Class for processing add meter request messages
  */
-@Component("dlmsAddMeterRequestMessageProcessor")
+@Component
 public class AddMeterRequestMessageProcessor extends DeviceRequestMessageProcessor {
 
     @Autowired
@@ -35,9 +34,16 @@ public class AddMeterRequestMessageProcessor extends DeviceRequestMessageProcess
     }
 
     @Override
-    protected Serializable handleMessage(final ClientConnection conn, final DlmsDevice device,
-            final Serializable requestObject) throws OsgpException, ProtocolAdapterException {
-        final SmartMeteringDevice smartMeteringDevice = (SmartMeteringDevice) requestObject;
+    protected boolean usesDeviceConnection() {
+        return false;
+    }
+
+    @Override
+    protected Serializable handleMessage(final DlmsDevice device, final Serializable requestObject)
+            throws OsgpException, ProtocolAdapterException {
+        this.assertRequestObjectType(SmartMeteringDeviceDto.class, requestObject);
+
+        final SmartMeteringDeviceDto smartMeteringDevice = (SmartMeteringDeviceDto) requestObject;
         this.installationService.addMeter(smartMeteringDevice);
 
         // No return object.

@@ -18,9 +18,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.alliander.osgp.dlms.DlmsPushNotification;
-import com.alliander.osgp.dto.valueobjects.DeviceFunction;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PushNotificationAlarm;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PushNotificationSms;
+import com.alliander.osgp.dto.valueobjects.DeviceFunctionDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PushNotificationAlarmDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PushNotificationSmsDto;
 import com.alliander.osgp.shared.infra.jms.RequestMessage;
 
 public class DlmsChannelHandlerServer extends DlmsChannelHandler {
@@ -66,27 +66,27 @@ public class DlmsChannelHandlerServer extends DlmsChannelHandler {
             final String deviceIdentification, final String ipAddress) {
         this.logMessage(message);
 
-        final PushNotificationAlarm pushNotificationAlarm = new PushNotificationAlarm(deviceIdentification,
-                message.getAlarms());
+        final PushNotificationAlarmDto pushNotificationAlarm = new PushNotificationAlarmDto(deviceIdentification,
+                message.getAlarms(), message.toByteArray());
 
-        final RequestMessage requestMessage = new RequestMessage(correlationId, "no-organisation",
-                deviceIdentification, ipAddress, pushNotificationAlarm);
+        final RequestMessage requestMessage = new RequestMessage(correlationId, "no-organisation", deviceIdentification,
+                ipAddress, pushNotificationAlarm);
 
         LOGGER.info("Sending push notification alarm to OSGP with correlation ID: " + correlationId);
-        this.osgpRequestMessageSender.send(requestMessage, DeviceFunction.PUSH_NOTIFICATION_ALARM.name());
+        this.osgpRequestMessageSender.send(requestMessage, DeviceFunctionDto.PUSH_NOTIFICATION_ALARM.name());
     }
 
     private void processPushedSms(final DlmsPushNotification message, final String correlationId,
             final String deviceIdentification, final String ipAddress) {
         this.logMessage(message);
 
-        final PushNotificationSms pushNotificationSms = new PushNotificationSms(deviceIdentification, ipAddress);
+        final PushNotificationSmsDto pushNotificationSms = new PushNotificationSmsDto(deviceIdentification, ipAddress);
 
-        final RequestMessage requestMessage = new RequestMessage(correlationId, "no-organisation",
-                deviceIdentification, ipAddress, pushNotificationSms);
+        final RequestMessage requestMessage = new RequestMessage(correlationId, "no-organisation", deviceIdentification,
+                ipAddress, pushNotificationSms);
 
         LOGGER.info("Sending push notification sms wakeup to OSGP with correlation ID: " + correlationId);
-        this.osgpRequestMessageSender.send(requestMessage, DeviceFunction.PUSH_NOTIFICATION_SMS.name());
+        this.osgpRequestMessageSender.send(requestMessage, DeviceFunctionDto.PUSH_NOTIFICATION_SMS.name());
     }
 
     private String retrieveIpAddress(final ChannelHandlerContext ctx, final String deviceIdentification) {

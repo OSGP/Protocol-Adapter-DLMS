@@ -4,13 +4,13 @@
 
     <groupId>org.osgp</groupId>
     <artifactId>protocol-adapter-dlms</artifactId>
-    <version>3.2.0</version>
+    <version>4.8.0</version>
     <packaging>pom</packaging>
     <!-- Description, Organization, Licenses, URL and Distribution Management elements are needed for the maven-jxr-plugin to generate a maven site -->
     <description>Protocol Adapter for DLMS smart devices.</description>
     <organization>
         <name>OSGP</name>
-        <url>https://osgplatform.wordpress.com</url>
+        <url>http://opensmartgridplatform.org</url>
     </organization>
     <licenses>
         <license>
@@ -70,8 +70,8 @@
     <modules>
         <module>parent-pa-dlms</module>
         <module>osgp-protocol-adapter-dlms</module>
-        <module>osgp-device-simulator-dlms</module>
         <module>osgp-dlms</module>
+        <module>osgp-jasper-interface</module>
         <module>Shared/shared</module>
         <module>Shared/osgp-dto</module>
     </modules>

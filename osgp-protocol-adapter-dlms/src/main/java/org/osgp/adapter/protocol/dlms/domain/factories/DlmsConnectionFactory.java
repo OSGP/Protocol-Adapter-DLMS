@@ -12,9 +12,11 @@ import java.io.IOException;
 import javax.inject.Provider;
 import javax.naming.OperationNotSupportedException;
 
-import org.openmuc.jdlms.ClientConnection;
+import org.openmuc.jdlms.DlmsConnection;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.infra.messaging.DlmsMessageListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import com.alliander.osgp.shared.exceptionhandling.TechnicalException;
@@ -23,7 +25,16 @@ import com.alliander.osgp.shared.exceptionhandling.TechnicalException;
 public class DlmsConnectionFactory {
 
     @Autowired
-    private Provider<Hls5Connector> hls5ConnectorProvider;
+    @Qualifier("hls5Connector")
+    private Provider<DlmsConnector> hls5ConnectorProvider;
+
+    @Autowired
+    @Qualifier("lls1Connector")
+    private Provider<DlmsConnector> lls1ConnectorProvider;
+
+    @Autowired
+    @Qualifier("lls0Connector")
+    private Provider<DlmsConnector> lls0ConnectorProvider;
 
     /**
      * Returns an open connection using the appropriate security settings for
@@ -33,18 +44,34 @@ public class DlmsConnectionFactory {
      *            The device to connect to. This reference can be updated when
      *            the invalid but correctable connection credentials are
      *            detected.
-     * @return an open connection
+     * @param dlmsMessageListener
+     *            A message listener that will be provided to the
+     *            {@link DlmsConnection} that is initialized if the given
+     *            {@code device} is in {@link DlmsDevice#isInDebugMode() debug
+     *            mode}. If this is {@code null} no DLMS device communication
+     *            debug logging will be done.
+     * @return a holder providing access to an open DLMS connection as well as
+     *         an optional message listener active in the connection.
      * @throws IOException
      * @throws OperationNotSupportedException
      */
-    public ClientConnection getConnection(final DlmsDevice device) throws TechnicalException {
+    public DlmsConnectionHolder getConnection(final DlmsDevice device, final DlmsMessageListener dlmsMessageListener)
+            throws TechnicalException {
+
+        DlmsConnector connector;
         if (device.isHls5Active()) {
-            final Hls5Connector connector = this.hls5ConnectorProvider.get();
-            connector.setDevice(device);
-            return connector.connect();
+            connector = this.hls5ConnectorProvider.get();
+        } else if (device.isLls1Active()) {
+            connector = this.lls1ConnectorProvider.get();
+        } else if (device.communicateUnencrypted()) {
+            connector = this.lls0ConnectorProvider.get();
         } else {
-            // TODO ADD IMPLEMENTATIONS FOR OTHER SECURITY MODES
-            throw new UnsupportedOperationException("Only HLS 5 connections are currently supported");
+            throw new UnsupportedOperationException(
+                    "Only HLS 5, LLS 1 and public (LLS 0) connections are currently supported");
         }
+
+        final DlmsConnectionHolder holder = new DlmsConnectionHolder(connector, device, dlmsMessageListener);
+        holder.connect();
+        return holder;
     }
 }

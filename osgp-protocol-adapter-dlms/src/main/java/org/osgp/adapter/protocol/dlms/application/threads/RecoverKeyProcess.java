@@ -11,7 +11,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 
 import org.bouncycastle.util.encoders.Hex;
-import org.openmuc.jdlms.ClientConnection;
+import org.openmuc.jdlms.AuthenticationMechanism;
+import org.openmuc.jdlms.DlmsConnection;
+import org.openmuc.jdlms.SecuritySuite;
+import org.openmuc.jdlms.SecuritySuite.EncryptionMechanism;
 import org.openmuc.jdlms.TcpConnectionBuilder;
 import org.osgp.adapter.protocol.dlms.application.services.DomainHelperService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
@@ -100,7 +103,7 @@ public class RecoverKeyProcess implements Runnable {
     }
 
     private boolean canConnect() {
-        ClientConnection connection = null;
+        DlmsConnection connection = null;
         try {
             connection = this.createConnection();
             return true;
@@ -109,7 +112,11 @@ public class RecoverKeyProcess implements Runnable {
             return false;
         } finally {
             if (connection != null) {
-                connection.close();
+                try {
+                    connection.close();
+                } catch (final IOException e) {
+                    LOGGER.warn("Connection exception: {}", e.getMessage(), e);
+                }
             }
         }
     }
@@ -127,22 +134,26 @@ public class RecoverKeyProcess implements Runnable {
      *             When there are problems in connecting to or communicating
      *             with the device.
      */
-    private ClientConnection createConnection() throws IOException {
+    private DlmsConnection createConnection() throws IOException {
         final byte[] authenticationKey = Hex.decode(this.getSecurityKey(SecurityKeyType.E_METER_AUTHENTICATION)
                 .getKey());
         final byte[] encryptionKey = Hex.decode(this.getSecurityKey(SecurityKeyType.E_METER_ENCRYPTION).getKey());
 
+        final SecuritySuite securitySuite = SecuritySuite.builder().setAuthenticationKey(authenticationKey)
+                .setAuthenticationMechanism(AuthenticationMechanism.HLS5_GMAC)
+                .setGlobalUnicastEncryptionKey(encryptionKey).setEncryptionMechanism(EncryptionMechanism.AES_GMC_128)
+                .build();
+
         final TcpConnectionBuilder tcpConnectionBuilder = new TcpConnectionBuilder(InetAddress.getByName(this.device
-                .getIpAddress())).useGmacAuthentication(authenticationKey, encryptionKey)
-                .enableEncryption(encryptionKey).responseTimeout(this.responseTimeout)
-                .logicalDeviceAddress(this.logicalDeviceAddress).clientAccessPoint(this.clientAccessPoint);
+                .getIpAddress())).setSecuritySuite(securitySuite).setResponseTimeout(this.responseTimeout)
+                .setLogicalDeviceId(this.logicalDeviceAddress).setClientId(this.clientAccessPoint);
 
         final Integer challengeLength = this.device.getChallengeLength();
         if (challengeLength != null) {
-            tcpConnectionBuilder.challengeLength(challengeLength);
+            tcpConnectionBuilder.setChallengeLength(challengeLength);
         }
 
-        return tcpConnectionBuilder.buildLnConnection();
+        return tcpConnectionBuilder.build();
     }
 
     private SecurityKey getSecurityKey(final SecurityKeyType securityKeyType) {

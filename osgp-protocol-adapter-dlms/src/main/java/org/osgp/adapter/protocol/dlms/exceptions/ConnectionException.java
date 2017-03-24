@@ -7,12 +7,8 @@
  */
 package org.osgp.adapter.protocol.dlms.exceptions;
 
-public class ConnectionException extends RuntimeException {
+public class ConnectionException extends RetryableException {
     private static final long serialVersionUID = -4527258679522467801L;
-
-    public ConnectionException() {
-        super();
-    }
 
     public ConnectionException(final String message, final Throwable cause, final boolean enableSuppression,
             final boolean writableStackTrace) {

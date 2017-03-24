@@ -9,20 +9,20 @@ package org.osgp.adapter.protocol.dlms.infra.messaging.processors;
 
 import java.io.Serializable;
 
-import org.openmuc.jdlms.ClientConnection;
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.osgp.adapter.protocol.dlms.application.services.MonitoringService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageProcessor;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
+import org.osgp.adapter.protocol.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQuery;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActualMeterReadsQueryDto;
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 
-@Component("dlmsActualMeterReadsRequestMessageProcessor")
+@Component
 public class ActualMeterReadsRequestMessageProcessor extends DeviceRequestMessageProcessor {
 
     @Autowired
@@ -33,10 +33,12 @@ public class ActualMeterReadsRequestMessageProcessor extends DeviceRequestMessag
     }
 
     @Override
-    protected Serializable handleMessage(final ClientConnection conn, final DlmsDevice device,
+    protected Serializable handleMessage(final DlmsConnectionHolder conn, final DlmsDevice device,
             final Serializable requestObject) throws OsgpException, ProtocolAdapterException, SessionProviderException {
 
-        final ActualMeterReadsQuery actualMeterReadsRequest = (ActualMeterReadsQuery) requestObject;
+        this.assertRequestObjectType(ActualMeterReadsQueryDto.class, requestObject);
+
+        final ActualMeterReadsQueryDto actualMeterReadsRequest = (ActualMeterReadsQueryDto) requestObject;
         return this.monitoringService.requestActualMeterReads(conn, device, actualMeterReadsRequest);
     }
 }

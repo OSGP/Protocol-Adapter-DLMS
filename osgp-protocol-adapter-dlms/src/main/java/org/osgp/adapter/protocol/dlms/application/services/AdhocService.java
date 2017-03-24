@@ -8,89 +8,64 @@
 package org.osgp.adapter.protocol.dlms.application.services;
 
 import java.io.Serializable;
-import java.util.List;
 
-import org.openmuc.jdlms.ClientConnection;
-import org.osgp.adapter.protocol.dlms.domain.commands.RetrieveConfigurationObjectsCommandExecutor;
+import org.openmuc.jdlms.AccessResultCode;
+import org.osgp.adapter.protocol.dlms.domain.commands.GetAssociationLnObjectsCommandExecutor;
+import org.osgp.adapter.protocol.dlms.domain.commands.GetSpecificAttributeValueCommandExecutor;
+import org.osgp.adapter.protocol.dlms.domain.commands.RetrieveAllAttributeValuesCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SynchronizeTimeCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
-import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionFactory;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
-import org.osgp.adapter.protocol.dlms.infra.ws.JasperWirelessSmsClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.RetrieveConfigurationObjectsRequest;
-import com.alliander.osgp.dto.valueobjects.smartmetering.SmsDetails;
-import com.alliander.osgp.dto.valueobjects.smartmetering.SynchronizeTimeRequest;
-import com.alliander.osgp.shared.exceptionhandling.ComponentType;
-import com.alliander.osgp.shared.exceptionhandling.OsgpException;
-import com.jasperwireless.api.ws.service.GetSMSDetailsResponse;
-import com.jasperwireless.api.ws.service.SendSMSResponse;
-import com.jasperwireless.api.ws.service.SmsMessageType;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AssociationLnListTypeDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.SpecificAttributeValueRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.SynchronizeTimeRequestDto;
 
 @Service(value = "dlmsAdhocService")
 public class AdhocService {
-    private static final String COMMUNICATION_METHOD_GPRS = "GPRS";
-
-    @Autowired
-    private DomainHelperService domainHelperService;
-
-    @Autowired
-    private DlmsConnectionFactory dlmsConnectionFactory;
 
     @Autowired
     private SynchronizeTimeCommandExecutor synchronizeTimeCommandExecutor;
 
     @Autowired
-    private RetrieveConfigurationObjectsCommandExecutor retrieveConfigurationObjectsCommandExecutor;
+    private RetrieveAllAttributeValuesCommandExecutor retrieveAllAttributeValuesCommandExecutor;
 
     @Autowired
-    private JasperWirelessSmsClient smsClient;
+    private GetSpecificAttributeValueCommandExecutor getSpecificAttributeValueCommandExecutor;
+
+    @Autowired
+    private GetAssociationLnObjectsCommandExecutor getAssociationLnObjectsCommandExecutor;
 
     // === REQUEST Synchronize Time DATA ===
 
-    public void synchronizeTime(final ClientConnection conn, final DlmsDevice device,
-            final SynchronizeTimeRequest synchronizeTimeRequest) throws ProtocolAdapterException {
-        this.synchronizeTimeCommandExecutor.execute(conn, device, null);
-    }
+    public void synchronizeTime(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final SynchronizeTimeRequestDto synchronizeTimeRequestDataDto) throws ProtocolAdapterException {
+        final AccessResultCode accessResultCode = this.synchronizeTimeCommandExecutor.execute(conn, device,
+                synchronizeTimeRequestDataDto);
 
-    // === REQUEST Send Wakeup SMS ===
-
-    public SmsDetails sendWakeUpSms(final ClientConnection conn, final DlmsDevice device) throws OsgpException {
-
-        if (!COMMUNICATION_METHOD_GPRS.equals(device.getCommunicationMethod())) {
-            throw new OsgpException(ComponentType.PROTOCOL_DLMS, "Device communication method is not GPRS");
+        if (!AccessResultCode.SUCCESS.equals(accessResultCode)) {
+            throw new ProtocolAdapterException("AccessResultCode for synchronizeTime: " + accessResultCode);
         }
-
-        final SendSMSResponse response = this.smsClient.sendWakeUpSMS(device.getIccId());
-        return new SmsDetails(device.getDeviceIdentification(), response.getSmsMsgId(), null, null, null);
     }
 
-    // === REQUEST Get SMS Details ===
+    public String retrieveAllAttributeValues(final DlmsConnectionHolder conn, final DlmsDevice device)
+            throws ProtocolAdapterException {
 
-    public SmsDetails getSmsDetails(final ClientConnection conn, final DlmsDevice device,
-            final SmsDetails smsDetailsRequest) throws OsgpException {
-
-        final GetSMSDetailsResponse response = this.smsClient.getSMSDetails(smsDetailsRequest.getSmsMsgId(),
-                device.getIccId());
-
-        SmsDetails smsDetailsResponse = null;
-        final List<SmsMessageType> smsMessagesTypes = response.getSmsMessages().getSmsMessage();
-        for (final SmsMessageType smsMessageType : smsMessagesTypes) {
-            if (smsMessageType.getSmsMsgId() == smsDetailsRequest.getSmsMsgId().longValue()) {
-                smsDetailsResponse = new SmsDetails(device.getDeviceIdentification(), smsMessageType.getSmsMsgId(),
-                        smsMessageType.getStatus(), smsMessageType.getSmsMsgAttemptStatus(),
-                        smsMessageType.getMsgType());
-            }
-        }
-
-        return smsDetailsResponse;
+        return this.retrieveAllAttributeValuesCommandExecutor.execute(conn, device, null);
     }
 
-    public Serializable retrieveConfigurationObjects(final ClientConnection conn, final DlmsDevice device,
-            final RetrieveConfigurationObjectsRequest request) throws ProtocolAdapterException {
+    public AssociationLnListTypeDto getAssociationLnObjects(final DlmsConnectionHolder conn, final DlmsDevice device)
+            throws ProtocolAdapterException {
+        return this.getAssociationLnObjectsCommandExecutor.execute(conn, device, null);
+    }
 
-        return this.retrieveConfigurationObjectsCommandExecutor.execute(conn, device, null);
+    public Serializable getSpecificAttributeValue(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final SpecificAttributeValueRequestDto specificAttributeValueRequestDataDto)
+                    throws ProtocolAdapterException {
+        return this.getSpecificAttributeValueCommandExecutor.execute(conn, device,
+                specificAttributeValueRequestDataDto);
     }
 }

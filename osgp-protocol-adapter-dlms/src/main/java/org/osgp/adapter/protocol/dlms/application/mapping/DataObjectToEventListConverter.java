@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.Event;
-import com.alliander.osgp.dto.valueobjects.smartmetering.EventLogCategory;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventLogCategoryDto;
 
 @Component(value = "dataObjectToEventListConverter")
 public class DataObjectToEventListConverter {
@@ -30,14 +30,14 @@ public class DataObjectToEventListConverter {
     @Autowired
     private DlmsHelperService dlmsHelperService;
 
-    public List<Event> convert(final DataObject source, final EventLogCategory eventLogCategory)
+    public List<EventDto> convert(final DataObject source, final EventLogCategoryDto eventLogCategory)
             throws ProtocolAdapterException {
-        final List<Event> eventList = new ArrayList<>();
+        final List<EventDto> eventList = new ArrayList<>();
         if (source == null) {
             throw new ProtocolAdapterException("DataObject should not be null");
         }
 
-        final List<DataObject> listOfEvents = source.value();
+        final List<DataObject> listOfEvents = source.getValue();
         for (final DataObject eventDataObject : listOfEvents) {
             eventList.add(this.getEvent(eventDataObject, eventLogCategory));
         }
@@ -46,10 +46,10 @@ public class DataObjectToEventListConverter {
 
     }
 
-    private Event getEvent(final DataObject eventDataObject, final EventLogCategory eventLogCategory)
+    private EventDto getEvent(final DataObject eventDataObject, final EventLogCategoryDto eventLogCategory)
             throws ProtocolAdapterException {
 
-        final List<DataObject> eventData = eventDataObject.value();
+        final List<DataObject> eventData = eventDataObject.getValue();
 
         if (eventData == null) {
             throw new ProtocolAdapterException("eventData DataObject should not be null");
@@ -60,14 +60,36 @@ public class DataObjectToEventListConverter {
                     + eventLogCategory.getNumberOfEventElements());
         }
 
+        // extract values from List<DataObject> eventData.
+        final DateTime dateTime = this.extractDateTime(eventData);
+        final Short code = this.extractCode(eventData);
+        final Integer eventCounter = this.extractEventCounter(eventLogCategory, eventData);
+
+        LOGGER.info("Event time is {}, event code is {} and event counter is {}", dateTime, code, eventCounter);
+
+        // build a new EventDto with those values.
+        return new EventDto(dateTime, code.intValue(), eventCounter);
+    }
+
+    private DateTime extractDateTime(final List<DataObject> eventData) throws ProtocolAdapterException {
+
         final DateTime dateTime = this.dlmsHelperService.convertDataObjectToDateTime(eventData.get(0)).asDateTime();
         if (dateTime == null) {
             throw new ProtocolAdapterException("eventData time is null/unspecified");
         }
+        return dateTime;
+    }
+
+    private Short extractCode(final List<DataObject> eventData) throws ProtocolAdapterException {
+
         if (!eventData.get(1).isNumber()) {
             throw new ProtocolAdapterException("eventData value is not a number");
         }
-        final Short code = eventData.get(1).value();
+        return eventData.get(1).getValue();
+    }
+
+    private Integer extractEventCounter(final EventLogCategoryDto eventLogCategory, final List<DataObject> eventData)
+            throws ProtocolAdapterException {
 
         Integer eventCounter = null;
 
@@ -75,11 +97,9 @@ public class DataObjectToEventListConverter {
             if (!eventData.get(2).isNumber()) {
                 throw new ProtocolAdapterException("eventData value is not a number");
             }
-            eventCounter = eventData.get(2).value();
+            eventCounter = eventData.get(2).getValue();
         }
 
-        LOGGER.info("Event time is {}, event code is {} and event counter is {}", dateTime, code, eventCounter);
-
-        return new Event(dateTime, code.intValue(), eventCounter);
+        return eventCounter;
     }
 }

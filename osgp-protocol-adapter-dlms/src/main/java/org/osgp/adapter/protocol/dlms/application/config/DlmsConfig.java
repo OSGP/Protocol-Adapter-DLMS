@@ -11,7 +11,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.annotation.Resource;
 import javax.inject.Provider;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -28,7 +27,10 @@ import org.jboss.netty.logging.Slf4JLoggerFactory;
 import org.osgp.adapter.protocol.dlms.application.services.DomainHelperService;
 import org.osgp.adapter.protocol.dlms.application.threads.RecoverKeyProcess;
 import org.osgp.adapter.protocol.dlms.application.threads.RecoverKeyProcessInitiator;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnector;
 import org.osgp.adapter.protocol.dlms.domain.factories.Hls5Connector;
+import org.osgp.adapter.protocol.dlms.domain.factories.Lls0Connector;
+import org.osgp.adapter.protocol.dlms.domain.factories.Lls1Connector;
 import org.osgp.adapter.protocol.dlms.domain.repositories.DlmsDeviceRepository;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.osgp.adapter.protocol.dlms.infra.networking.DlmsChannelHandlerServer;
@@ -40,9 +42,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.annotation.PropertySources;
 import org.springframework.context.annotation.Scope;
-import org.springframework.core.env.Environment;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import com.alliander.osgp.shared.application.config.AbstractConfig;
 
 /**
  * An application context Java configuration class. The usage of Java
@@ -50,14 +54,13 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  */
 @Configuration
 @EnableTransactionManagement()
-@PropertySource("file:${osp/osgpAdapterProtocolDlms/config}")
-public class DlmsConfig {
+@PropertySources({ @PropertySource("classpath:osgp-adapter-protocol-dlms.properties"),
+        @PropertySource(value = "file:${osgp/Global/config}", ignoreResourceNotFound = true),
+        @PropertySource(value = "file:${osgp/AdapterProtocolDlms/config}", ignoreResourceNotFound = true), })
+public class DlmsConfig extends AbstractConfig {
     private static final String PROPERTY_NAME_DLMS_PORT_SERVER = "dlms.port.server";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DlmsConfig.class);
-
-    @Resource
-    private Environment environment;
 
     public DlmsConfig() {
         InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
@@ -79,8 +82,8 @@ public class DlmsConfig {
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
             @Override
             public ChannelPipeline getPipeline() throws ProtocolAdapterException {
-                final ChannelPipeline pipeline = DlmsConfig.this.createChannelPipeline(DlmsConfig.this
-                        .dlmsChannelHandlerServer());
+                final ChannelPipeline pipeline = DlmsConfig.this
+                        .createChannelPipeline(DlmsConfig.this.dlmsChannelHandlerServer());
 
                 LOGGER.info("Created new DLMS handler pipeline for server");
 
@@ -127,15 +130,29 @@ public class DlmsConfig {
     }
 
     @Bean
-    @Scope("prototype")
     @Autowired
     public Hls5Connector hls5Connector(final RecoverKeyProcessInitiator recoverKeyProcessInitiator,
-            final DlmsDeviceRepository dlmsDeviceRepository,
             @Value("${jdlms.response_timeout}") final int responseTimeout,
             @Value("${jdlms.logical_device_address}") final int logicalDeviceAddress,
             @Value("${jdlms.client_access_point}") final int clientAccessPoint) {
-        return new Hls5Connector(recoverKeyProcessInitiator, dlmsDeviceRepository, responseTimeout,
+        return new Hls5Connector(recoverKeyProcessInitiator, responseTimeout, logicalDeviceAddress, clientAccessPoint);
+    }
+
+    @Bean
+    @Autowired
+    public Lls1Connector lls1Connector(@Value("${jdlms.lls1.response.timeout}") final int responseTimeout,
+            @Value("${jdlms.logical_device_address}") final int logicalDeviceAddress,
+            @Value("${jdlms.lls1.client.access.point}") final int clientAccessPoint) {
+        LOGGER.info("responseTimeout: {}, logicalDeviceAddress: {}, clientAccessPoint: {}", responseTimeout,
                 logicalDeviceAddress, clientAccessPoint);
+        return new Lls1Connector(responseTimeout, logicalDeviceAddress, clientAccessPoint);
+    }
+
+    @Bean
+    @Autowired
+    public DlmsConnector lls0Connector(@Value("${jdlms.response_timeout}") final int responseTimeout,
+            @Value("${jdlms.logical_device_address}") final int logicalDeviceAddress) {
+        return new Lls0Connector(responseTimeout, logicalDeviceAddress);
     }
 
     @Bean
@@ -159,7 +176,8 @@ public class DlmsConfig {
     }
 
     @Bean
-    public ScheduledExecutorService scheduledExecutorService(@Value("${executor.scheduled.poolsize}") final int poolsize) {
+    public ScheduledExecutorService scheduledExecutorService(
+            @Value("${executor.scheduled.poolsize}") final int poolsize) {
         return Executors.newScheduledThreadPool(poolsize);
     }
 }

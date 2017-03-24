@@ -8,16 +8,14 @@
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeoutException;
 
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.GetResult;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
@@ -25,12 +23,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.AlarmRegister;
-import com.alliander.osgp.dto.valueobjects.smartmetering.AlarmType;
-import com.alliander.osgp.dto.valueobjects.smartmetering.ReadAlarmRegisterRequest;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AlarmRegisterResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AlarmTypeDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ReadAlarmRegisterDataDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ReadAlarmRegisterRequestDto;
 
 @Component
-public class ReadAlarmRegisterCommandExecutor implements CommandExecutor<ReadAlarmRegisterRequest, AlarmRegister> {
+public class ReadAlarmRegisterCommandExecutor extends
+        AbstractCommandExecutor<ReadAlarmRegisterRequestDto, AlarmRegisterResponseDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReadAlarmRegisterCommandExecutor.class);
 
@@ -41,39 +42,54 @@ public class ReadAlarmRegisterCommandExecutor implements CommandExecutor<ReadAla
     @Autowired
     private AlarmHelperService alarmHelperService;
 
-    @Override
-    public AlarmRegister execute(final ClientConnection conn, final DlmsDevice device,
-            final ReadAlarmRegisterRequest object) throws ProtocolAdapterException {
-
-        return new AlarmRegister(this.retrieveAlarmRegister(conn));
+    public ReadAlarmRegisterCommandExecutor() {
+        super(ReadAlarmRegisterDataDto.class);
     }
 
-    private Set<AlarmType> retrieveAlarmRegister(final ClientConnection conn) throws ProtocolAdapterException {
+    @Override
+    public ReadAlarmRegisterRequestDto fromBundleRequestInput(final ActionRequestDto bundleInput)
+            throws ProtocolAdapterException {
+
+        this.checkActionRequestType(bundleInput);
+
+        /*
+         * ReadAlarmRegisterDataDto does not have a deviceIdentification. Since
+         * the device identification is not used by the executor anyway, it is
+         * given the value "not relevant", as long as the XSD for the WS input
+         * still specifies a device identification for the non-bundled call.
+         */
+        return new ReadAlarmRegisterRequestDto("not relevant");
+    }
+
+    @Override
+    public AlarmRegisterResponseDto execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final ReadAlarmRegisterRequestDto object) throws ProtocolAdapterException {
+        return new AlarmRegisterResponseDto(this.retrieveAlarmRegister(conn));
+    }
+
+    private Set<AlarmTypeDto> retrieveAlarmRegister(final DlmsConnectionHolder conn) throws ProtocolAdapterException {
 
         final AttributeAddress alarmRegisterValue = new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID);
 
-        List<GetResult> getResultList;
+        conn.getDlmsMessageListener().setDescription("ReadAlarmRegister, retrieve attribute: "
+                + JdlmsObjectToStringUtil.describeAttributes(alarmRegisterValue));
+
+        GetResult getResult = null;
         try {
-            getResultList = conn.get(alarmRegisterValue);
-        } catch (IOException | TimeoutException e) {
+            getResult = conn.getConnection().get(alarmRegisterValue);
+        } catch (final IOException e) {
             throw new ConnectionException(e);
         }
 
-        if (getResultList.isEmpty()) {
+        if (getResult == null) {
             throw new ProtocolAdapterException("No GetResult received while retrieving alarm register.");
         }
 
-        if (getResultList.size() > 1) {
-            throw new ProtocolAdapterException("Expected 1 GetResult while retrieving alarm register, got "
-                    + getResultList.size());
-        }
-
-        final GetResult result = getResultList.get(0);
-        final DataObject resultData = result.resultData();
+        final DataObject resultData = getResult.getResultData();
         if (resultData != null && resultData.isNumber()) {
-            return this.alarmHelperService.toAlarmTypes((Long) result.resultData().value());
+            return this.alarmHelperService.toAlarmTypes((Long) getResult.getResultData().getValue());
         } else {
-            LOGGER.error("Result: {} --> {}", result.resultCode().name(), result.resultData());
+            LOGGER.error("Result: {} --> {}", getResult.getResultCode().name(), getResult.getResultData());
             throw new ProtocolAdapterException("Invalid register value received from the meter.");
         }
     }

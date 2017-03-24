@@ -9,23 +9,23 @@ package org.osgp.adapter.protocol.dlms.infra.messaging.processors;
 
 import java.io.Serializable;
 
-import org.openmuc.jdlms.ClientConnection;
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.osgp.adapter.protocol.dlms.application.services.MonitoringService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageProcessor;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
+import org.osgp.adapter.protocol.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsQuery;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsRequestDto;
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 
 /**
  * Class for processing Periodic Meter Request messages
  */
-@Component("dlmsPeriodicMeterRequestMessageProcessor")
+@Component
 public class PeriodicMeterReadsRequestMessageProcessor extends DeviceRequestMessageProcessor {
 
     @Autowired
@@ -36,9 +36,12 @@ public class PeriodicMeterReadsRequestMessageProcessor extends DeviceRequestMess
     }
 
     @Override
-    protected Serializable handleMessage(final ClientConnection conn, final DlmsDevice device,
+    protected Serializable handleMessage(final DlmsConnectionHolder conn, final DlmsDevice device,
             final Serializable requestObject) throws OsgpException, ProtocolAdapterException, SessionProviderException {
-        final PeriodicMeterReadsQuery periodicMeterReadsQuery = (PeriodicMeterReadsQuery) requestObject;
+
+        this.assertRequestObjectType(PeriodicMeterReadsRequestDto.class, requestObject);
+
+        final PeriodicMeterReadsRequestDto periodicMeterReadsQuery = (PeriodicMeterReadsRequestDto) requestObject;
 
         return this.monitoringService.requestPeriodicMeterReads(conn, device, periodicMeterReadsQuery);
     }

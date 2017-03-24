@@ -8,18 +8,11 @@
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-
 import org.bouncycastle.util.encoders.Hex;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.MethodParameter;
 import org.openmuc.jdlms.MethodResult;
 import org.openmuc.jdlms.MethodResultCode;
@@ -28,16 +21,27 @@ import org.openmuc.jdlms.SecurityUtils;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.openmuc.jdlms.interfaceclass.method.MBusClientMethod;
 import org.osgp.adapter.protocol.dlms.application.models.ProtocolMeterInfo;
+import org.osgp.adapter.protocol.dlms.application.services.DomainHelperService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.entities.SecurityKeyType;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.GMeterInfoDto;
+import com.alliander.osgp.shared.exceptionhandling.EncrypterException;
+import com.alliander.osgp.shared.exceptionhandling.FunctionalException;
+import com.alliander.osgp.shared.security.EncryptionService;
+
 @Component()
-public class SetEncryptionKeyExchangeOnGMeterCommandExecutor implements
-CommandExecutor<ProtocolMeterInfo, MethodResultCode> {
+public class SetEncryptionKeyExchangeOnGMeterCommandExecutor extends
+        AbstractCommandExecutor<ProtocolMeterInfo, MethodResultCode> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SetEncryptionKeyExchangeOnGMeterCommandExecutor.class);
 
@@ -55,44 +59,92 @@ CommandExecutor<ProtocolMeterInfo, MethodResultCode> {
         OBIS_HASHMAP.put(4, OBIS_CODE_INTERVAL_MBUS_4);
     }
 
-    @Override
-    public MethodResultCode execute(final ClientConnection conn, final DlmsDevice device,
-            final ProtocolMeterInfo protocolMeterInfo) throws ProtocolAdapterException {
+    @Autowired
+    private EncryptionService encryptionService;
 
+    @Autowired
+    private DomainHelperService domainHelperService;
+
+    public SetEncryptionKeyExchangeOnGMeterCommandExecutor() {
+        super(GMeterInfoDto.class);
+    }
+
+    @Override
+    public ProtocolMeterInfo fromBundleRequestInput(final ActionRequestDto bundleInput) throws ProtocolAdapterException {
+
+        this.checkActionRequestType(bundleInput);
+        final GMeterInfoDto gMeterInfoDto = (GMeterInfoDto) bundleInput;
+
+        try {
+            final DlmsDevice gMeterDevice = this.domainHelperService.findDlmsDevice(gMeterInfoDto
+                    .getDeviceIdentification());
+
+            return new ProtocolMeterInfo(gMeterInfoDto.getChannel(), gMeterInfoDto.getDeviceIdentification(),
+                    gMeterDevice.getValidSecurityKey(SecurityKeyType.G_METER_ENCRYPTION).getKey(), gMeterDevice
+                    .getValidSecurityKey(SecurityKeyType.G_METER_MASTER).getKey());
+
+        } catch (final FunctionalException e) {
+            LOGGER.error("Error looking up G-Meter " + gMeterInfoDto.getDeviceIdentification(), e);
+            throw new ProtocolAdapterException("Error looking up G-Meter " + gMeterInfoDto.getDeviceIdentification(), e);
+        }
+    }
+
+    @Override
+    public ActionResponseDto asBundleResponse(final MethodResultCode executionResult) throws ProtocolAdapterException {
+
+        this.checkMethodResultCode(executionResult);
+
+        return new ActionResponseDto("Setting encryption key exchange on Gas meter was successful");
+    }
+
+    @Override
+    public MethodResultCode execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final ProtocolMeterInfo protocolMeterInfo) throws ProtocolAdapterException {
         try {
             LOGGER.debug("SetEncryptionKeyExchangeOnGMeterCommandExecutor.execute called");
 
-            final byte[] encryptionKey = Hex.decode(protocolMeterInfo.getEncryptionKey());
-            final byte[] masterKey = Hex.decode(protocolMeterInfo.getMasterKey());
+            // Decrypt the cipher text using the private key.
+            final byte[] decryptedEncryptionKey = this.encryptionService.decrypt(Hex.decode(protocolMeterInfo
+                    .getEncryptionKey()));
+            final byte[] decryptedMasterKey = this.encryptionService.decrypt(Hex.decode(protocolMeterInfo
+                    .getMasterKey()));
 
             final ObisCode obisCode = OBIS_HASHMAP.get(protocolMeterInfo.getChannel());
 
-            final MethodParameter methodTransferKey = this.getTransferKeyToMBusMethodParameter(obisCode, masterKey,
-                    encryptionKey);
+            final MethodParameter methodTransferKey = this.getTransferKeyToMBusMethodParameter(obisCode,
+                    decryptedMasterKey, decryptedEncryptionKey);
 
-            List<MethodResult> methodResultCode = conn.action(methodTransferKey);
+            conn.getDlmsMessageListener()
+                    .setDescription("SetEncryptionKeyExchangeOnGMeter for channel " + protocolMeterInfo.getChannel()
+                            + ", call method: " + JdlmsObjectToStringUtil.describeMethod(methodTransferKey));
+
+            MethodResult methodResultCode = conn.getConnection().action(methodTransferKey);
             this.checkMethodResultCode(methodResultCode, "getTransferKeyToMBusMethodParameter");
             LOGGER.info("Success!: Finished calling getTransferKeyToMBusMethodParameter class_id {} obis_code {}",
                     CLASS_ID, obisCode);
 
             final MethodParameter methodSetEncryptionKey = this.getSetEncryptionKeyMethodParameter(obisCode,
-                    encryptionKey);
-            methodResultCode = conn.action(methodSetEncryptionKey);
+                    decryptedEncryptionKey);
+            methodResultCode = conn.getConnection().action(methodSetEncryptionKey);
             this.checkMethodResultCode(methodResultCode, "getSetEncryptionKeyMethodParameter");
             LOGGER.info("Success!: Finished calling setEncryptionKey class_id {} obis_code {}", CLASS_ID, obisCode);
 
             return MethodResultCode.SUCCESS;
         } catch (final IOException e) {
+            LOGGER.error("Unexpected exception while connecting with device", e);
             throw new ConnectionException(e);
+        } catch (final EncrypterException e) {
+            LOGGER.error("Unexpected exception during decryption of security keys", e);
+            throw new ProtocolAdapterException("Unexpected exception during decryption of security keys, reason = "
+                    + e.getMessage());
         }
     }
 
-    private void checkMethodResultCode(final List<MethodResult> methodResultCode, final String methodParameterName)
+    private void checkMethodResultCode(final MethodResult methodResultCode, final String methodParameterName)
             throws ProtocolAdapterException {
-        if (methodResultCode == null || methodResultCode.size() != 1 || methodResultCode.get(0) == null
-                || !MethodResultCode.SUCCESS.equals(methodResultCode.get(0).resultCode())) {
+        if (methodResultCode == null || !MethodResultCode.SUCCESS.equals(methodResultCode.getResultCode())) {
             throw new ProtocolAdapterException("Error while executing " + methodParameterName + ". Reason = "
-                    + methodResultCode.get(0).resultCode());
+                    + methodResultCode.getResultCode());
         }
     }
 
@@ -100,9 +152,8 @@ CommandExecutor<ProtocolMeterInfo, MethodResultCode> {
             final byte[] encryptionKey) throws ProtocolAdapterException {
         byte[] encryptedEncryptionkey;
         try {
-            encryptedEncryptionkey = SecurityUtils.aes128Ciphering(defaultMBusKey, encryptionKey);
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException
-                | BadPaddingException e) {
+            encryptedEncryptionkey = SecurityUtils.cipherWithAes128(defaultMBusKey, encryptionKey);
+        } catch (final GeneralSecurityException e) {
             LOGGER.error("Unexpected exception during getTransferKeyToMBusMethodParameter", e);
             throw new ProtocolAdapterException(e.getMessage());
         }

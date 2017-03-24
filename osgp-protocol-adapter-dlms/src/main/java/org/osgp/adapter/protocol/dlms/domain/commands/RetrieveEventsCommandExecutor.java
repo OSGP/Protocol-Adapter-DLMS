@@ -12,18 +12,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 import org.joda.time.DateTime;
 import org.openmuc.jdlms.AccessResultCode;
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.GetResult;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.SelectiveAccessDescription;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.application.mapping.DataObjectToEventListConverter;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
@@ -31,12 +30,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.Event;
-import com.alliander.osgp.dto.valueobjects.smartmetering.EventLogCategory;
-import com.alliander.osgp.dto.valueobjects.smartmetering.FindEventsQuery;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventLogCategoryDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.EventMessageDataResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.FindEventsRequestDto;
 
 @Component()
-public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEventsQuery, List<Event>> {
+public class RetrieveEventsCommandExecutor extends AbstractCommandExecutor<FindEventsRequestDto, List<EventDto>> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RetrieveEventsCommandExecutor.class);
 
@@ -56,19 +57,28 @@ public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEvents
     private DlmsHelperService dlmsHelperService;
 
     // @formatter:off
-    private static final EnumMap<EventLogCategory, ObisCode> EVENT_LOG_CATEGORY_OBISCODE_MAP = new EnumMap<>(
-            EventLogCategory.class);
+    private static final EnumMap<EventLogCategoryDto, ObisCode> EVENT_LOG_CATEGORY_OBISCODE_MAP = new EnumMap<>(
+            EventLogCategoryDto.class);
     static {
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.STANDARD_EVENT_LOG,        new ObisCode("0.0.99.98.0.255"));
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.FRAUD_DETECTION_LOG,       new ObisCode("0.0.99.98.1.255"));
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.COMMUNICATION_SESSION_LOG, new ObisCode("0.0.99.98.4.255"));
-        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategory.M_BUS_EVENT_LOG,           new ObisCode("0.0.99.98.3.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.STANDARD_EVENT_LOG,        new ObisCode("0.0.99.98.0.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.FRAUD_DETECTION_LOG,       new ObisCode("0.0.99.98.1.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.COMMUNICATION_SESSION_LOG, new ObisCode("0.0.99.98.4.255"));
+        EVENT_LOG_CATEGORY_OBISCODE_MAP.put(EventLogCategoryDto.M_BUS_EVENT_LOG,           new ObisCode("0.0.99.98.3.255"));
     }
     // @formatter:on
 
+    public RetrieveEventsCommandExecutor() {
+        super(FindEventsRequestDto.class);
+    }
+
     @Override
-    public List<Event> execute(final ClientConnection conn, final DlmsDevice device,
-            final FindEventsQuery findEventsQuery) throws ProtocolAdapterException {
+    public ActionResponseDto asBundleResponse(final List<EventDto> executionResult) throws ProtocolAdapterException {
+        return new EventMessageDataResponseDto(executionResult);
+    }
+
+    @Override
+    public List<EventDto> execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final FindEventsRequestDto findEventsQuery) throws ProtocolAdapterException {
 
         final SelectiveAccessDescription selectiveAccessDescription = this.getSelectiveAccessDescription(
                 findEventsQuery.getFrom(), findEventsQuery.getUntil());
@@ -77,32 +87,31 @@ public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEvents
                 EVENT_LOG_CATEGORY_OBISCODE_MAP.get(findEventsQuery.getEventLogCategory()), ATTRIBUTE_ID,
                 selectiveAccessDescription);
 
-        List<GetResult> getResultList;
+        conn.getDlmsMessageListener()
+                .setDescription("RetrieveEvents for " + findEventsQuery.getEventLogCategory() + " from "
+                        + findEventsQuery.getFrom() + " until " + findEventsQuery.getUntil() + ", retrieve attribute: "
+                        + JdlmsObjectToStringUtil.describeAttributes(eventLogBuffer));
+
+        GetResult getResult;
         try {
-            getResultList = conn.get(eventLogBuffer);
-        } catch (IOException | TimeoutException e) {
+            getResult = conn.getConnection().get(eventLogBuffer);
+        } catch (final IOException e) {
             throw new ConnectionException(e);
         }
 
-        if (getResultList.isEmpty()) {
+        if (getResult == null) {
             throw new ProtocolAdapterException("No GetResult received while retrieving event register "
                     + findEventsQuery.getEventLogCategory());
         }
 
-        if (getResultList.size() > 1) {
-            throw new ProtocolAdapterException("Expected 1 GetResult while retrieving event log for "
-                    + findEventsQuery.getEventLogCategory() + ". Got " + getResultList.size());
-        }
-
-        final GetResult result = getResultList.get(0);
-        if (!AccessResultCode.SUCCESS.equals(result.resultCode())) {
+        if (!AccessResultCode.SUCCESS.equals(getResult.getResultCode())) {
             LOGGER.info("Result of getting events for {} is {}", findEventsQuery.getEventLogCategory(),
-                    result.resultCode());
+                    getResult.getResultCode());
             throw new ProtocolAdapterException("Getting the events for  " + findEventsQuery.getEventLogCategory()
-                    + " from the meter resulted in: " + result.resultCode());
+                    + " from the meter resulted in: " + getResult.getResultCode());
         }
 
-        final DataObject resultData = result.resultData();
+        final DataObject resultData = getResult.getResultData();
         return this.dataObjectToEventListConverter.convert(resultData, findEventsQuery.getEventLogCategory());
     }
 
@@ -135,4 +144,5 @@ public class RetrieveEventsCommandExecutor implements CommandExecutor<FindEvents
 
         return new SelectiveAccessDescription(accessSelector, accessParameter);
     }
+
 }

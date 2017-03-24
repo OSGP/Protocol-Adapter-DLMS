@@ -16,33 +16,34 @@ import java.util.Map;
 import java.util.Set;
 
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.GetResult;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.SelectiveAccessDescription;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
+import org.osgp.adapter.protocol.dlms.exceptions.BufferedDateTimeValidationException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.AmrProfileStatusCode;
-import com.alliander.osgp.dto.valueobjects.smartmetering.AmrProfileStatusCodeFlag;
-import com.alliander.osgp.dto.valueobjects.smartmetering.Channel;
-import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTime;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodType;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsContainerGas;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsGas;
-import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsQuery;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AmrProfileStatusCodeDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.AmrProfileStatusCodeFlagDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ChannelDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.CosemDateTimeDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodTypeDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadGasResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsGasRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsGasResponseItemDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PeriodicMeterReadsRequestDto;
 
 @Component()
-public class GetPeriodicMeterReadsGasCommandExecutor implements
-        CommandExecutor<PeriodicMeterReadsQuery, PeriodicMeterReadsContainerGas> {
+public class GetPeriodicMeterReadsGasCommandExecutor extends
+AbstractPeriodicMeterReadsCommandExecutor<PeriodicMeterReadsRequestDto, PeriodicMeterReadGasResponseDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetPeriodicMeterReadsGasCommandExecutor.class);
 
@@ -70,7 +71,7 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
     private static final int BUFFER_INDEX_MBUS_CAPTURETIME_INT = 3;
 
     private static final int CLASS_ID_MBUS = 4;
-    private static final Map<Integer, byte[]> OBIS_BYTES_M_BUS_MASTER_VALUE_1_CHANNEL_MAP = new HashMap<Integer, byte[]>();
+    private static final Map<Integer, byte[]> OBIS_BYTES_M_BUS_MASTER_VALUE_1_CHANNEL_MAP = new HashMap<>();
     static {
         OBIS_BYTES_M_BUS_MASTER_VALUE_1_CHANNEL_MAP.put(1, new byte[] { 0, 1, 24, 2, 1, (byte) 255 });
         OBIS_BYTES_M_BUS_MASTER_VALUE_1_CHANNEL_MAP.put(2, new byte[] { 0, 2, 24, 2, 1, (byte) 255 });
@@ -80,10 +81,10 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
     private static final byte ATTRIBUTE_M_BUS_MASTER_VALUE = 2;
     private static final byte ATTRIBUTE_M_BUS_MASTER_VALUE_CAPTURE_TIME = 5;
 
-    private static final Map<Integer, Integer> INDEX_MONTHLY_SELECTIVE_ACCESS_MBUS_VALUE_MAP = new HashMap<Integer, Integer>();
-    private static final Map<Integer, Integer> INDEX_MONTHLY_SELECTIVE_ACCESS_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<Integer, Integer>();
-    private static final Map<Integer, Integer> INDEX_MONTHLY_MBUS_VALUE_MAP = new HashMap<Integer, Integer>();
-    private static final Map<Integer, Integer> INDEX_MONTHLY_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<Integer, Integer>();
+    private static final Map<Integer, Integer> INDEX_MONTHLY_SELECTIVE_ACCESS_MBUS_VALUE_MAP = new HashMap<>();
+    private static final Map<Integer, Integer> INDEX_MONTHLY_SELECTIVE_ACCESS_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<>();
+    private static final Map<Integer, Integer> INDEX_MONTHLY_MBUS_VALUE_MAP = new HashMap<>();
+    private static final Map<Integer, Integer> INDEX_MONTHLY_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<>();
     static {
         // Indicates the position of the value or value_capture_time for
         // channel 1, 2, 3 and 4
@@ -141,10 +142,10 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         INDEX_MONTHLY_MBUS_VALUE_CAPTURE_TIME_MAP.put(4, 12);
     }
 
-    private static final Map<Integer, Integer> INDEX_DAILY_MBUS_VALUE_MAP = new HashMap<Integer, Integer>();
-    private static final Map<Integer, Integer> INDEX_DAILY_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<Integer, Integer>();
-    private static final Map<Integer, Integer> INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_MAP = new HashMap<Integer, Integer>();
-    private static final Map<Integer, Integer> INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<Integer, Integer>();
+    private static final Map<Integer, Integer> INDEX_DAILY_MBUS_VALUE_MAP = new HashMap<>();
+    private static final Map<Integer, Integer> INDEX_DAILY_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<>();
+    private static final Map<Integer, Integer> INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_MAP = new HashMap<>();
+    private static final Map<Integer, Integer> INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_CAPTURE_TIME_MAP = new HashMap<>();
     static {
         // Indicates the position of the value or value_capture_time for
         // channel 1, 2, 3 and 4
@@ -204,17 +205,37 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_CAPTURE_TIME_MAP.put(4, 3);
     }
 
+    private static final String GAS_VALUE = "gasValue";
+    private static final String GAS_VALUES = "gasValue: {}";
+    private static final String UNEXPECTED_VALUE = "Unexpected null/unspecified value for Gas Capture Time";
+
     @Autowired
     private DlmsHelperService dlmsHelperService;
 
     @Autowired
     private AmrProfileStatusCodeHelperService amrProfileStatusCodeHelperService;
 
-    @Override
-    public PeriodicMeterReadsContainerGas execute(final ClientConnection conn, final DlmsDevice device,
-            final PeriodicMeterReadsQuery periodicMeterReadsQuery) throws ProtocolAdapterException {
+    public GetPeriodicMeterReadsGasCommandExecutor() {
+        super(PeriodicMeterReadsGasRequestDto.class);
+    }
 
-        final PeriodType periodType;
+    @Override
+    public PeriodicMeterReadsRequestDto fromBundleRequestInput(final ActionRequestDto bundleInput)
+            throws ProtocolAdapterException {
+
+        this.checkActionRequestType(bundleInput);
+        final PeriodicMeterReadsGasRequestDto periodicMeterReadsGasRequestDto = (PeriodicMeterReadsGasRequestDto) bundleInput;
+
+        return new PeriodicMeterReadsRequestDto(periodicMeterReadsGasRequestDto.getPeriodType(),
+                periodicMeterReadsGasRequestDto.getBeginDate(), periodicMeterReadsGasRequestDto.getEndDate(),
+                periodicMeterReadsGasRequestDto.getChannel());
+    }
+
+    @Override
+    public PeriodicMeterReadGasResponseDto execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final PeriodicMeterReadsRequestDto periodicMeterReadsQuery) throws ProtocolAdapterException {
+
+        final PeriodTypeDto periodType;
         final DateTime beginDateTime;
         final DateTime endDateTime;
         if (periodicMeterReadsQuery != null) {
@@ -236,105 +257,104 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
          * workaround for a problem when using with_list and retrieving a
          * profile buffer, this will be returned erroneously.
          */
-        final List<GetResult> getResultList = new ArrayList<GetResult>(profileBufferAndScalerUnit.length);
+        final List<GetResult> getResultList = new ArrayList<>(profileBufferAndScalerUnit.length);
         for (final AttributeAddress address : profileBufferAndScalerUnit) {
+
+            conn.getDlmsMessageListener().setDescription(
+                    "GetPeriodicMeterReadsGas for channel " + periodicMeterReadsQuery.getChannel() + ", " + periodType
+                    + " from " + beginDateTime + " until " + endDateTime + ", retrieve attribute: "
+                    + JdlmsObjectToStringUtil.describeAttributes(address));
+
             getResultList.addAll(this.dlmsHelperService.getAndCheck(conn, device, "retrieve periodic meter reads for "
                     + periodType + ", channel " + periodicMeterReadsQuery.getChannel(), address));
         }
 
-        final List<PeriodicMeterReadsGas> periodicMeterReads = new ArrayList<>();
-
         final DataObject resultData = this.dlmsHelperService.readDataObject(getResultList.get(0),
                 "Periodic G-Meter Reads");
-        final List<DataObject> bufferedObjectsList = resultData.value();
+        final List<DataObject> bufferedObjectsList = resultData.getValue();
 
+        final List<PeriodicMeterReadsGasResponseItemDto> periodicMeterReads = new ArrayList<>();
         for (final DataObject bufferedObject : bufferedObjectsList) {
-            final List<DataObject> bufferedObjects = bufferedObject.value();
-            this.processNextPeriodicMeterReads(periodType, beginDateTime, endDateTime, periodicMeterReads,
-                    bufferedObjects, periodicMeterReadsQuery.getChannel(), device.isSelectiveAccessSupported(),
-                    getResultList);
+            final List<DataObject> bufferedObjects = bufferedObject.getValue();
+            try {
+                periodicMeterReads.add(this.getNextPeriodicMeterReads(periodType, beginDateTime, endDateTime,
+                        bufferedObjects, periodicMeterReadsQuery.getChannel(), device.isSelectiveAccessSupported(),
+                        getResultList));
+            } catch (final BufferedDateTimeValidationException e) {
+                LOGGER.warn(e.getMessage(), e);
+            }
         }
 
-        return new PeriodicMeterReadsContainerGas(periodType, periodicMeterReads);
+        return new PeriodicMeterReadGasResponseDto(periodType, periodicMeterReads);
     }
 
-    private void processNextPeriodicMeterReads(final PeriodType periodType, final DateTime beginDateTime,
-            final DateTime endDateTime, final List<PeriodicMeterReadsGas> periodicMeterReads,
-            final List<DataObject> bufferedObjects, final Channel channel, final boolean isSelectiveAccessSupported,
-            final List<GetResult> results) throws ProtocolAdapterException {
+    private PeriodicMeterReadsGasResponseItemDto getNextPeriodicMeterReads(final PeriodTypeDto periodType,
+            final DateTime beginDateTime, final DateTime endDateTime, final List<DataObject> bufferedObjects,
+            final ChannelDto channel, final boolean isSelectiveAccessSupported, final List<GetResult> results)
+            throws ProtocolAdapterException, BufferedDateTimeValidationException {
 
-        final CosemDateTime cosemDateTime = this.dlmsHelperService.readDateTime(
+        final CosemDateTimeDto cosemDateTime = this.dlmsHelperService.readDateTime(
                 bufferedObjects.get(BUFFER_INDEX_CLOCK), "Clock from " + periodType + " buffer gas");
         final DateTime bufferedDateTime = cosemDateTime == null ? null : cosemDateTime.asDateTime();
-        if (bufferedDateTime == null) {
-            final DateTimeFormatter dtf = ISODateTimeFormat.dateTime();
-            LOGGER.warn("Not using an object from capture buffer (clock=" + cosemDateTime
-                    + "), because the date does not match the given period, since it is not fully specified: ["
-                    + dtf.print(beginDateTime) + " .. " + dtf.print(endDateTime) + "].");
-            return;
-        }
-        if (bufferedDateTime.isBefore(beginDateTime) || bufferedDateTime.isAfter(endDateTime)) {
-            final DateTimeFormatter dtf = ISODateTimeFormat.dateTime();
-            LOGGER.warn("Not using an object from capture buffer (clock=" + dtf.print(bufferedDateTime)
-                    + "), because the date does not match the given period: [" + dtf.print(beginDateTime) + " .. "
-                    + dtf.print(endDateTime) + "].");
-            return;
-        }
+
+        this.dlmsHelperService.validateBufferedDateTime(bufferedDateTime, cosemDateTime, beginDateTime, endDateTime);
 
         LOGGER.debug("Processing profile (" + periodType + ") objects captured at: {}", cosemDateTime);
 
+        return this.getNextPeriodicMeterReadsBasedOnPeriodType(periodType, bufferedObjects, channel,
+                isSelectiveAccessSupported, results, bufferedDateTime);
+    }
+
+    private PeriodicMeterReadsGasResponseItemDto getNextPeriodicMeterReadsBasedOnPeriodType(
+            final PeriodTypeDto periodType, final List<DataObject> bufferedObjects, final ChannelDto channel,
+            final boolean isSelectiveAccessSupported, final List<GetResult> results, final DateTime bufferedDateTime)
+            throws ProtocolAdapterException, AssertionError {
         switch (periodType) {
         case INTERVAL:
-            this.processNextPeriodicMeterReadsForInterval(periodicMeterReads, bufferedObjects, bufferedDateTime,
-                    results);
-            break;
+            return this.getNextPeriodicMeterReadsForInterval(bufferedObjects, bufferedDateTime, results);
         case DAILY:
-            this.processNextPeriodicMeterReadsForDaily(periodicMeterReads, bufferedObjects, bufferedDateTime, channel,
+            return this.getNextPeriodicMeterReadsForDaily(bufferedObjects, bufferedDateTime, channel,
                     isSelectiveAccessSupported, results);
-            break;
         case MONTHLY:
-            this.processNextPeriodicMeterReadsForMonthly(periodicMeterReads, bufferedObjects, bufferedDateTime,
-                    channel, isSelectiveAccessSupported, results);
-            break;
+            return this.getNextPeriodicMeterReadsForMonthly(bufferedObjects, bufferedDateTime, channel,
+                    isSelectiveAccessSupported, results);
         default:
             throw new AssertionError("Unknown PeriodType: " + periodType);
         }
     }
 
-    private void processNextPeriodicMeterReadsForInterval(final List<PeriodicMeterReadsGas> periodicMeterReads,
+    private PeriodicMeterReadsGasResponseItemDto getNextPeriodicMeterReadsForInterval(
             final List<DataObject> bufferedObjects, final DateTime bufferedDateTime, final List<GetResult> results)
-            throws ProtocolAdapterException {
+                    throws ProtocolAdapterException {
 
-        final AmrProfileStatusCode amrProfileStatusCode = this.readAmrProfileStatusCode(bufferedObjects
+        final AmrProfileStatusCodeDto amrProfileStatusCode = this.readAmrProfileStatusCode(bufferedObjects
                 .get(BUFFER_INDEX_AMR_STATUS));
 
         final DataObject gasValue = bufferedObjects.get(BUFFER_INDEX_MBUS_VALUE_INT);
-        LOGGER.debug("gasValue: {}", this.dlmsHelperService.getDebugInfo(gasValue));
+        LOGGER.debug(GAS_VALUES, this.dlmsHelperService.getDebugInfo(gasValue));
 
-        final CosemDateTime cosemDateTime = this.dlmsHelperService.readDateTime(
+        final CosemDateTimeDto cosemDateTime = this.dlmsHelperService.readDateTime(
                 bufferedObjects.get(BUFFER_INDEX_MBUS_CAPTURETIME_INT), "Clock from mbus interval extended register");
         final Date captureTime;
         if (cosemDateTime.isDateTimeSpecified()) {
             captureTime = cosemDateTime.asDateTime().toDate();
         } else {
-            throw new ProtocolAdapterException("Unexpected null/unspecified value for Gas Capture Time");
+            throw new ProtocolAdapterException(UNEXPECTED_VALUE);
         }
-        final PeriodicMeterReadsGas nextPeriodicMeterReads = new PeriodicMeterReadsGas(bufferedDateTime.toDate(),
-                this.dlmsHelperService.getScaledMeterValue(gasValue,
-                        results.get(RESULT_INDEX_SCALER_UNIT).resultData(), "gasValue"), captureTime,
-                        amrProfileStatusCode);
-        periodicMeterReads.add(nextPeriodicMeterReads);
+        return new PeriodicMeterReadsGasResponseItemDto(bufferedDateTime.toDate(),
+                this.dlmsHelperService.getScaledMeterValue(gasValue, results.get(RESULT_INDEX_SCALER_UNIT)
+                        .getResultData(), GAS_VALUE), captureTime, amrProfileStatusCode);
     }
 
-    private void processNextPeriodicMeterReadsForDaily(final List<PeriodicMeterReadsGas> periodicMeterReads,
-            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime, final Channel channel,
+    private PeriodicMeterReadsGasResponseItemDto getNextPeriodicMeterReadsForDaily(
+            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime, final ChannelDto channel,
             final boolean isSelectiveAccessSupported, final List<GetResult> results) throws ProtocolAdapterException {
 
-        final AmrProfileStatusCode amrProfileStatusCode = this.readAmrProfileStatusCode(bufferedObjects
+        final AmrProfileStatusCodeDto amrProfileStatusCode = this.readAmrProfileStatusCode(bufferedObjects
                 .get(BUFFER_INDEX_AMR_STATUS));
 
-        DataObject gasValue = null;
-        DataObject gasCaptureTime = null;
+        DataObject gasValue;
+        DataObject gasCaptureTime;
         if (isSelectiveAccessSupported) {
             gasValue = bufferedObjects.get(INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_MAP.get(channel.getChannelNumber()));
             gasCaptureTime = bufferedObjects.get(INDEX_DAILY_SELECTIVE_ACCESS_MBUS_VALUE_CAPTURE_TIME_MAP.get(channel
@@ -345,30 +365,28 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
                     .get(INDEX_DAILY_MBUS_VALUE_CAPTURE_TIME_MAP.get(channel.getChannelNumber()));
         }
 
-        LOGGER.debug("gasValue: {}", this.dlmsHelperService.getDebugInfo(gasValue));
+        LOGGER.debug(GAS_VALUES, this.dlmsHelperService.getDebugInfo(gasValue));
         LOGGER.debug("gasCaptureTime: {}", this.dlmsHelperService.getDebugInfo(gasCaptureTime));
 
-        final CosemDateTime cosemDateTime = this.dlmsHelperService.readDateTime(gasCaptureTime,
+        final CosemDateTimeDto cosemDateTime = this.dlmsHelperService.readDateTime(gasCaptureTime,
                 "Clock from daily mbus daily extended register");
         final Date captureTime;
         if (cosemDateTime.isDateTimeSpecified()) {
             captureTime = cosemDateTime.asDateTime().toDate();
         } else {
-            throw new ProtocolAdapterException("Unexpected null/unspecified value for Gas Capture Time");
+            throw new ProtocolAdapterException(UNEXPECTED_VALUE);
         }
-        final PeriodicMeterReadsGas nextPeriodicMeterReads = new PeriodicMeterReadsGas(bufferedDateTime.toDate(),
-                this.dlmsHelperService.getScaledMeterValue(gasValue,
-                        results.get(RESULT_INDEX_SCALER_UNIT).resultData(), "gasValue"), captureTime,
-                amrProfileStatusCode);
-        periodicMeterReads.add(nextPeriodicMeterReads);
+        return new PeriodicMeterReadsGasResponseItemDto(bufferedDateTime.toDate(),
+                this.dlmsHelperService.getScaledMeterValue(gasValue, results.get(RESULT_INDEX_SCALER_UNIT)
+                        .getResultData(), GAS_VALUE), captureTime, amrProfileStatusCode);
     }
 
-    private void processNextPeriodicMeterReadsForMonthly(final List<PeriodicMeterReadsGas> periodicMeterReads,
-            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime, final Channel channel,
+    private PeriodicMeterReadsGasResponseItemDto getNextPeriodicMeterReadsForMonthly(
+            final List<DataObject> bufferedObjects, final DateTime bufferedDateTime, final ChannelDto channel,
             final boolean isSelectiveAccessSupported, final List<GetResult> results) throws ProtocolAdapterException {
 
-        DataObject gasValue = null;
-        DataObject gasCaptureTime = null;
+        DataObject gasValue;
+        DataObject gasCaptureTime;
         if (isSelectiveAccessSupported) {
             gasValue = bufferedObjects
                     .get(INDEX_MONTHLY_SELECTIVE_ACCESS_MBUS_VALUE_MAP.get(channel.getChannelNumber()));
@@ -380,24 +398,23 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
                     .getChannelNumber()));
         }
 
-        LOGGER.debug("gasValue: {}", this.dlmsHelperService.getDebugInfo(gasValue));
+        LOGGER.debug(GAS_VALUES, this.dlmsHelperService.getDebugInfo(gasValue));
         LOGGER.debug("gasCaptureTime: {}", this.dlmsHelperService.getDebugInfo(gasCaptureTime));
 
-        final CosemDateTime cosemDateTime = this.dlmsHelperService.readDateTime(gasCaptureTime,
+        final CosemDateTimeDto cosemDateTime = this.dlmsHelperService.readDateTime(gasCaptureTime,
                 "gas capture time for mbus monthly");
         final Date captureTime;
         if (cosemDateTime.isDateTimeSpecified()) {
             captureTime = cosemDateTime.asDateTime().toDate();
         } else {
-            throw new ProtocolAdapterException("Unexpected null/unspecified value for Gas Capture Time");
+            throw new ProtocolAdapterException(UNEXPECTED_VALUE);
         }
-        final PeriodicMeterReadsGas nextPeriodicMeterReads = new PeriodicMeterReadsGas(bufferedDateTime.toDate(),
-                this.dlmsHelperService.getScaledMeterValue(gasValue,
-                        results.get(RESULT_INDEX_SCALER_UNIT).resultData(), "gasValue"), captureTime);
-        periodicMeterReads.add(nextPeriodicMeterReads);
+        return new PeriodicMeterReadsGasResponseItemDto(bufferedDateTime.toDate(),
+                this.dlmsHelperService.getScaledMeterValue(gasValue, results.get(RESULT_INDEX_SCALER_UNIT)
+                        .getResultData(), GAS_VALUE), captureTime);
     }
 
-    private ObisCode intervalForChannel(final Channel channel) throws ProtocolAdapterException {
+    private ObisCode intervalForChannel(final ChannelDto channel) throws ProtocolAdapterException {
         switch (channel) {
         case ONE:
             return OBIS_CODE_INTERVAL_MBUS_1;
@@ -412,14 +429,14 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         }
     }
 
-    private AttributeAddress[] getProfileBufferAndScalerUnit(final PeriodType periodType, final Channel channel,
+    private AttributeAddress[] getProfileBufferAndScalerUnit(final PeriodTypeDto periodType, final ChannelDto channel,
             final DateTime beginDateTime, final DateTime endDateTime, final boolean isSelectingValuesSupported)
-            throws ProtocolAdapterException {
+                    throws ProtocolAdapterException {
 
         final SelectiveAccessDescription access = this.getSelectiveAccessDescription(channel, periodType,
                 beginDateTime, endDateTime, isSelectingValuesSupported);
 
-        final List<AttributeAddress> profileBuffer = new ArrayList<AttributeAddress>();
+        final List<AttributeAddress> profileBuffer = new ArrayList<>();
         switch (periodType) {
         case INTERVAL:
             profileBuffer.add(new AttributeAddress(CLASS_ID_PROFILE_GENERIC, this.intervalForChannel(channel),
@@ -440,7 +457,7 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         return profileBuffer.toArray(new AttributeAddress[profileBuffer.size()]);
     }
 
-    private AttributeAddress getScalerUnit(final Channel channel) throws ProtocolAdapterException {
+    private AttributeAddress getScalerUnit(final ChannelDto channel) throws ProtocolAdapterException {
 
         switch (channel) {
         case ONE:
@@ -460,8 +477,8 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         }
     }
 
-    private SelectiveAccessDescription getSelectiveAccessDescription(final Channel channel,
-            final PeriodType periodType, final DateTime beginDateTime, final DateTime endDateTime,
+    private SelectiveAccessDescription getSelectiveAccessDescription(final ChannelDto channel,
+            final PeriodTypeDto periodType, final DateTime beginDateTime, final DateTime endDateTime,
             final boolean isSelectingValuesSupported) {
 
         final int accessSelector = ACCESS_SELECTOR_RANGE_DESCRIPTOR;
@@ -488,7 +505,7 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         return new SelectiveAccessDescription(accessSelector, accessParameter);
     }
 
-    private void addSelectedValues(final Channel channel, final PeriodType periodType,
+    private void addSelectedValues(final ChannelDto channel, final PeriodTypeDto periodType,
             final List<DataObject> objectDefinitions) {
 
         switch (periodType) {
@@ -507,7 +524,7 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         }
     }
 
-    private void addSelectedValuesForMonthly(final List<DataObject> objectDefinitions, final Channel channel) {
+    private void addSelectedValuesForMonthly(final List<DataObject> objectDefinitions, final ChannelDto channel) {
         /*-
          * Available objects in the profile buffer (0-0:98.1.0.255):
          * {8,0-0:1.0.0.255,2,0}    -  clock
@@ -535,7 +552,7 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
         this.addMBusMasterValue1CaptureTime(objectDefinitions, channel);
     }
 
-    private void addSelectedValuesForDaily(final List<DataObject> objectDefinitions, final Channel channel) {
+    private void addSelectedValuesForDaily(final List<DataObject> objectDefinitions, final ChannelDto channel) {
         /*-
          * Available objects in the profile buffer (1-0:99.2.0.255):
          * {8,0-0:1.0.0.255,2,0}    -  clock
@@ -576,22 +593,19 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
      * @throws ProtocolAdapterException
      *             on invalid register data.
      */
-    private AmrProfileStatusCode readAmrProfileStatusCode(final DataObject amrProfileStatusData)
+    private AmrProfileStatusCodeDto readAmrProfileStatusCode(final DataObject amrProfileStatusData)
             throws ProtocolAdapterException {
-        AmrProfileStatusCode amrProfileStatusCode = null;
 
         if (!amrProfileStatusData.isNumber()) {
             throw new ProtocolAdapterException("Could not read AMR profile register data. Invalid data type.");
         }
 
-        final Set<AmrProfileStatusCodeFlag> flags = this.amrProfileStatusCodeHelperService
-                .toAmrProfileStatusCodeFlags((Number) amrProfileStatusData.value());
-        amrProfileStatusCode = new AmrProfileStatusCode(flags);
-
-        return amrProfileStatusCode;
+        final Set<AmrProfileStatusCodeFlagDto> flags = this.amrProfileStatusCodeHelperService
+                .toAmrProfileStatusCodeFlags((Number) amrProfileStatusData.getValue());
+        return new AmrProfileStatusCodeDto(flags);
     }
 
-    private void addMBusMasterValue1(final List<DataObject> objectDefinitions, final Channel channel) {
+    private void addMBusMasterValue1(final List<DataObject> objectDefinitions, final ChannelDto channel) {
         // {4,0-x.24.2.1.255,2,0} - M-Bus Master Value 1 Channel x
         // where x is the channel
         objectDefinitions.add(DataObject.newStructureData(Arrays.asList(DataObject.newUInteger16Data(CLASS_ID_MBUS),
@@ -600,7 +614,7 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
                         .newUInteger16Data(0))));
     }
 
-    private void addMBusMasterValue1CaptureTime(final List<DataObject> objectDefinitions, final Channel channel) {
+    private void addMBusMasterValue1CaptureTime(final List<DataObject> objectDefinitions, final ChannelDto channel) {
         // {4,0-x.24.2.1.255,2,0} - M-Bus Master Value 1 Channel x
         // where x is the channel
         objectDefinitions.add(DataObject.newStructureData(Arrays.asList(DataObject.newUInteger16Data(CLASS_ID_MBUS),
@@ -608,5 +622,4 @@ public class GetPeriodicMeterReadsGasCommandExecutor implements
                         .getChannelNumber())), DataObject.newInteger8Data(ATTRIBUTE_M_BUS_MASTER_VALUE_CAPTURE_TIME),
                         DataObject.newUInteger16Data(0))));
     }
-
 }

@@ -7,17 +7,14 @@
  */
 package org.osgp.adapter.protocol.dlms.application.services;
 
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.SessionProvider;
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.SessionProviderService;
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.exceptions.SessionProviderException;
-import org.osgp.adapter.protocol.dlms.application.jasper.sessionproviders.exceptions.SessionProviderUnsupportedException;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
 import org.osgp.adapter.protocol.dlms.domain.repositories.DlmsDeviceRepository;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.osgp.adapter.protocol.dlms.infra.messaging.DlmsDeviceMessageMetadata;
-import org.osgp.adapter.protocol.dlms.infra.ws.JasperWirelessSmsClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.osgp.adapter.protocol.jasper.infra.ws.JasperWirelessSmsClient;
+import org.osgp.adapter.protocol.jasper.sessionproviders.SessionProvider;
+import org.osgp.adapter.protocol.jasper.sessionproviders.SessionProviderService;
+import org.osgp.adapter.protocol.jasper.sessionproviders.exceptions.SessionProviderException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +24,6 @@ import com.alliander.osgp.shared.exceptionhandling.FunctionalExceptionType;
 
 @Service(value = "dlmsDomainHelperService")
 public class DomainHelperService {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DomainHelperService.class);
 
     private static final ComponentType COMPONENT_TYPE = ComponentType.PROTOCOL_DLMS;
 
@@ -48,16 +43,10 @@ public class DomainHelperService {
     private int jasperGetSessionSleepBetweenRetries;
 
     /**
-     * Use {@link #findDlmsDevice(DlmsDeviceMessageMetadata)} instead, as this
-     * will also set the IP address.
-     * <p>
-     * If this method turns out to be called from a location where
-     * {@link DlmsDeviceMessageMetadata} is not available, check if the IP
-     * address needs to be provided in another way.
-     *
-     * @deprecated
+     * This method can be used to find an mBusDevice. For other devices, use
+     * {@link #findDlmsDevice(DlmsDeviceMessageMetadata)} instead, as this will
+     * also set the IP address.
      */
-    @Deprecated
     public DlmsDevice findDlmsDevice(final String deviceIdentification) throws FunctionalException {
         final DlmsDevice dlmsDevice = this.dlmsDeviceRepository.findByDeviceIdentification(deviceIdentification);
         if (dlmsDevice == null) {
@@ -101,25 +90,37 @@ public class DomainHelperService {
             // awake).
             // So wake up the meter and start polling for the session
             this.jasperWirelessSmsClient.sendWakeUpSMS(dlmsDevice.getIccId());
+            deviceIpAddress = this.pollForSession(sessionProvider, dlmsDevice);
+
+        } catch (final SessionProviderException e) {
+            throw new ProtocolAdapterException("", e);
+        }
+        if ((deviceIpAddress == null) || "".equals(deviceIpAddress)) {
+            throw new ProtocolAdapterException("Session provider: " + dlmsDevice.getCommunicationProvider()
+                    + " did not return an IP address for device: " + dlmsDevice.getDeviceIdentification()
+                    + "and iccId: " + dlmsDevice.getIccId());
+
+        }
+        return deviceIpAddress;
+    }
+
+    private String pollForSession(final SessionProvider sessionProvider, final DlmsDevice dlmsDevice)
+            throws ProtocolAdapterException {
+
+        String deviceIpAddress = null;
+        try {
             for (int i = 0; i < this.jasperGetSessionRetries; i++) {
                 Thread.sleep(this.jasperGetSessionSleepBetweenRetries);
                 deviceIpAddress = sessionProvider.getIpAddress(dlmsDevice.getIccId());
-
                 if (deviceIpAddress != null) {
-                    break;
+                    return deviceIpAddress;
                 }
             }
         } catch (final InterruptedException e) {
             throw new ProtocolAdapterException(
                     "Interrupted while sleeping before calling the sessionProvider.getIpAddress", e);
-        } catch (SessionProviderUnsupportedException | SessionProviderException e) {
+        } catch (final SessionProviderException e) {
             throw new ProtocolAdapterException("", e);
-        }
-        if (deviceIpAddress == null || "".equals(deviceIpAddress)) {
-            throw new ProtocolAdapterException("Session provider: " + dlmsDevice.getCommunicationProvider()
-                    + " did not return an IP address for device: " + dlmsDevice.getDeviceIdentification()
-                    + "and iccId: " + dlmsDevice.getIccId());
-
         }
         return deviceIpAddress;
     }

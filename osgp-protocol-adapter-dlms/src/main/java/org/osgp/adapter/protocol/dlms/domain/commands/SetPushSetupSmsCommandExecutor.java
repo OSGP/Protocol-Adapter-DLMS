@@ -8,50 +8,77 @@
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.openmuc.jdlms.AccessResultCode;
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.ClientConnection;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.SetParameter;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
+import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupSms;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionRequestDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.ActionResponseDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.PushSetupSmsDto;
+import com.alliander.osgp.dto.valueobjects.smartmetering.SetPushSetupSmsRequestDto;
 
 @Component()
-public class SetPushSetupSmsCommandExecutor extends SetPushSetupCommandExecutor implements
-CommandExecutor<PushSetupSms, AccessResultCode> {
+public class SetPushSetupSmsCommandExecutor extends SetPushSetupCommandExecutor<PushSetupSmsDto, AccessResultCode> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SetPushSetupSmsCommandExecutor.class);
-    private static final ObisCode OBIS_CODE = new ObisCode("0.1.25.9.0.255");
+    private static final ObisCode OBIS_CODE = new ObisCode("0.2.25.9.0.255");
+
+    public SetPushSetupSmsCommandExecutor() {
+        super(SetPushSetupSmsRequestDto.class);
+    }
 
     @Override
-    public AccessResultCode execute(final ClientConnection conn, final DlmsDevice device,
-            final PushSetupSms pushSetupSms) throws ProtocolAdapterException {
+    public PushSetupSmsDto fromBundleRequestInput(final ActionRequestDto bundleInput) throws ProtocolAdapterException {
+
+        this.checkActionRequestType(bundleInput);
+        final SetPushSetupSmsRequestDto setPushSetupSmsRequestDto = (SetPushSetupSmsRequestDto) bundleInput;
+
+        return setPushSetupSmsRequestDto.getPushSetupSms();
+    }
+
+    @Override
+    public ActionResponseDto asBundleResponse(final AccessResultCode executionResult) throws ProtocolAdapterException {
+
+        this.checkAccessResultCode(executionResult);
+
+        return new ActionResponseDto("Setting push setup SMS was successful");
+    }
+
+    @Override
+    public AccessResultCode execute(final DlmsConnectionHolder conn, final DlmsDevice device,
+            final PushSetupSmsDto pushSetupSms) throws ProtocolAdapterException {
 
         final SetParameter setParameterSendDestinationAndMethod = this.getSetParameter(pushSetupSms);
 
-        List<AccessResultCode> resultCodes;
+        conn.getDlmsMessageListener()
+                .setDescription("SetPushSetupSms configure send destination and method, set attribute: "
+                        + JdlmsObjectToStringUtil.describeAttributes(
+                                new AttributeAddress(CLASS_ID, OBIS_CODE, ATTRIBUTE_ID_SEND_DESTINATION_AND_METHOD)));
+
+        AccessResultCode resultCode;
         try {
-            resultCodes = conn.set(setParameterSendDestinationAndMethod);
+            resultCode = conn.getConnection().set(setParameterSendDestinationAndMethod);
         } catch (final IOException e) {
             throw new ConnectionException(e);
         }
-        if (resultCodes != null && !resultCodes.isEmpty()) {
-            return resultCodes.get(0);
+        if (resultCode != null) {
+            return resultCode;
         } else {
             throw new ProtocolAdapterException("Error setting Sms push setup data.");
         }
     }
 
-    private SetParameter getSetParameter(final PushSetupSms pushSetupSms) throws ProtocolAdapterException {
+    private SetParameter getSetParameter(final PushSetupSmsDto pushSetupSms) throws ProtocolAdapterException {
 
         this.checkPushSetupSms(pushSetupSms);
 
@@ -62,7 +89,7 @@ CommandExecutor<PushSetupSms, AccessResultCode> {
 
     }
 
-    private void checkPushSetupSms(final PushSetupSms pushSetupSms) throws ProtocolAdapterException {
+    private void checkPushSetupSms(final PushSetupSmsDto pushSetupSms) throws ProtocolAdapterException {
         if (!pushSetupSms.hasSendDestinationAndMethod()) {
             LOGGER.error("Send Destination and Method of the Push Setup Sms is expected to be set.");
             throw new ProtocolAdapterException("Error setting Sms push setup data. No destination and method data");
