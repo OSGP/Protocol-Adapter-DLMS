@@ -18,27 +18,22 @@ import org.osgp.adapter.protocol.dlms.infra.messaging.DeviceRequestMessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.alliander.osgp.dto.valueobjects.smartmetering.SpecificAttributeValueRequestDto;
 import com.alliander.osgp.shared.exceptionhandling.FunctionalException;
 
 @Component
-public class GetSpecificAttributeValueRequestMessageProcessor extends DeviceRequestMessageProcessor {
+public class GetAllAttributeValuesRequestMessageProcessor extends DeviceRequestMessageProcessor {
 
     @Autowired
     private AdhocService adhocService;
 
-    protected GetSpecificAttributeValueRequestMessageProcessor() {
-        super(DeviceRequestMessageType.GET_SPECIFIC_ATTRIBUTE_VALUE);
+    protected GetAllAttributeValuesRequestMessageProcessor() {
+        super(DeviceRequestMessageType.GET_ALL_ATTRIBUTE_VALUES);
     }
 
     @Override
     protected Serializable handleMessage(final DlmsConnectionHolder conn, final DlmsDevice device,
             final Serializable requestObject) throws ProtocolAdapterException, FunctionalException {
 
-        this.assertRequestObjectType(SpecificAttributeValueRequestDto.class, requestObject);
-
-        final SpecificAttributeValueRequestDto specificConfigurationObjectRequestDataDto = (SpecificAttributeValueRequestDto) requestObject;
-
-        return this.adhocService.getSpecificAttributeValue(conn, device, specificConfigurationObjectRequestDataDto);
+        return this.adhocService.getAllAttributeValues(conn, device);
     }
 }

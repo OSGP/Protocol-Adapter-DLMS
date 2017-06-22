@@ -10,6 +10,8 @@ package org.osgp.adapter.protocol.dlms.exceptions;
 import org.springframework.stereotype.Component;
 
 import com.alliander.osgp.shared.exceptionhandling.ComponentType;
+import com.alliander.osgp.shared.exceptionhandling.FunctionalException;
+import com.alliander.osgp.shared.exceptionhandling.FunctionalExceptionType;
 import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 import com.alliander.osgp.shared.exceptionhandling.TechnicalException;
 
@@ -39,17 +41,14 @@ public class OsgpExceptionConverter {
      */
     public OsgpException ensureOsgpOrTechnicalException(final Exception e) {
         if (e instanceof OsgpException) {
-            final Throwable cause = e.getCause();
-            if (cause != null && !(cause instanceof OsgpException)) {
-                return new OsgpException(ComponentType.PROTOCOL_DLMS, e.getMessage(), new OsgpException(
-                        ComponentType.PROTOCOL_DLMS, cause.getMessage()));
-            }
-
             return (OsgpException) e;
+        }
+        if (e instanceof ConnectionException) {
+            return new FunctionalException(FunctionalExceptionType.CONNECTION_ERROR, ComponentType.PROTOCOL_DLMS, new OsgpException(ComponentType.PROTOCOL_DLMS, e.getMessage()));
         }
 
         return new TechnicalException(ComponentType.PROTOCOL_DLMS,
-                "Unexpected exception while handling protocol request/response message", new OsgpException(
-                        ComponentType.PROTOCOL_DLMS, e.getMessage()));
+                "Unexpected exception while handling protocol request/response message",
+                new OsgpException(ComponentType.PROTOCOL_DLMS, e.getMessage()));
     }
 }

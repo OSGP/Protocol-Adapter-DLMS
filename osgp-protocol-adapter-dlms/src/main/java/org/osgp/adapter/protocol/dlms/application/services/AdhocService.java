@@ -10,9 +10,9 @@ package org.osgp.adapter.protocol.dlms.application.services;
 import java.io.Serializable;
 
 import org.openmuc.jdlms.AccessResultCode;
+import org.osgp.adapter.protocol.dlms.domain.commands.GetAllAttributeValuesCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetAssociationLnObjectsCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetSpecificAttributeValueCommandExecutor;
-import org.osgp.adapter.protocol.dlms.domain.commands.RetrieveAllAttributeValuesCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.SynchronizeTimeCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
 import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import com.alliander.osgp.dto.valueobjects.smartmetering.AssociationLnListTypeDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SpecificAttributeValueRequestDto;
 import com.alliander.osgp.dto.valueobjects.smartmetering.SynchronizeTimeRequestDto;
+import com.alliander.osgp.shared.exceptionhandling.FunctionalException;
 
 @Service(value = "dlmsAdhocService")
 public class AdhocService {
@@ -31,7 +32,7 @@ public class AdhocService {
     private SynchronizeTimeCommandExecutor synchronizeTimeCommandExecutor;
 
     @Autowired
-    private RetrieveAllAttributeValuesCommandExecutor retrieveAllAttributeValuesCommandExecutor;
+    private GetAllAttributeValuesCommandExecutor getAllAttributeValuesCommandExecutor;
 
     @Autowired
     private GetSpecificAttributeValueCommandExecutor getSpecificAttributeValueCommandExecutor;
@@ -51,10 +52,10 @@ public class AdhocService {
         }
     }
 
-    public String retrieveAllAttributeValues(final DlmsConnectionHolder conn, final DlmsDevice device)
-            throws ProtocolAdapterException {
+    public String getAllAttributeValues(final DlmsConnectionHolder conn, final DlmsDevice device)
+            throws ProtocolAdapterException, FunctionalException {
 
-        return this.retrieveAllAttributeValuesCommandExecutor.execute(conn, device, null);
+        return this.getAllAttributeValuesCommandExecutor.execute(conn, device, null);
     }
 
     public AssociationLnListTypeDto getAssociationLnObjects(final DlmsConnectionHolder conn, final DlmsDevice device)
@@ -64,7 +65,7 @@ public class AdhocService {
 
     public Serializable getSpecificAttributeValue(final DlmsConnectionHolder conn, final DlmsDevice device,
             final SpecificAttributeValueRequestDto specificAttributeValueRequestDataDto)
-                    throws ProtocolAdapterException {
+                    throws FunctionalException {
         return this.getSpecificAttributeValueCommandExecutor.execute(conn, device,
                 specificAttributeValueRequestDataDto);
     }

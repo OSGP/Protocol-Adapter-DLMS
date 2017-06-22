@@ -11,6 +11,7 @@ import java.util.List;
 
 import org.openmuc.jdlms.AccessResultCode;
 import org.osgp.adapter.protocol.dlms.application.models.ProtocolMeterInfo;
+import org.osgp.adapter.protocol.dlms.domain.commands.GenerateAndReplaceKeyCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetAdministrativeStatusCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetConfigurationObjectCommandExecutor;
 import org.osgp.adapter.protocol.dlms.domain.commands.GetFirmwareVersionsCommandExecutor;
@@ -105,6 +106,11 @@ public class ConfigurationService {
     @Autowired
     private GetConfigurationObjectCommandExecutor getConfigurationObjectCommandExecutor;
 
+    @Autowired
+    private GenerateAndReplaceKeyCommandExecutor generateAndReplaceKeyCommandExecutor;
+
+    public static final int AES_GMC_128_KEY_SIZE = 128;
+
     public void setSpecialDays(final DlmsConnectionHolder conn, final DlmsDevice device,
             final SpecialDaysRequestDto specialDaysRequest) throws ProtocolAdapterException {
 
@@ -190,17 +196,14 @@ public class ConfigurationService {
     }
 
     public String setEncryptionKeyExchangeOnGMeter(final DlmsConnectionHolder conn, final DlmsDevice device,
-            final GMeterInfoDto gMeterInfo) throws ProtocolAdapterException {
+            final GMeterInfoDto gMeterInfo) throws ProtocolAdapterException, FunctionalException {
 
         LOGGER.info("Device for Set Encryption Key Exchange On G-Meter is: {}", device);
 
         // Get G-Meter
         DlmsDevice gMeterDevice;
-        try {
-            gMeterDevice = this.domainHelperService.findDlmsDevice(gMeterInfo.getDeviceIdentification());
-        } catch (final FunctionalException e) {
-            throw new ProtocolAdapterException("Error while looking up G-Meter", e);
-        }
+        gMeterDevice = this.domainHelperService.findDlmsDevice(gMeterInfo.getDeviceIdentification());
+
         final ProtocolMeterInfo protocolMeterInfo = new ProtocolMeterInfo(gMeterInfo.getChannel(),
                 gMeterInfo.getDeviceIdentification(),
                 gMeterDevice.getValidSecurityKey(SecurityKeyType.G_METER_ENCRYPTION).getKey(),
@@ -258,8 +261,19 @@ public class ConfigurationService {
         return this.getFirmwareVersionCommandExecutor.execute(conn, device, null);
     }
 
+    public void generateAndEncrypt(final DlmsConnectionHolder conn, final DlmsDevice device)
+            throws ProtocolAdapterException, FunctionalException {
+        try {
+
+            this.generateAndReplaceKeyCommandExecutor.executeBundleAction(conn, device, null);
+        } catch (final ProtocolAdapterException e) {
+            LOGGER.error("Unexpected exception during replaceKeys.", e);
+            throw e;
+        }
+    }
+
     public void replaceKeys(final DlmsConnectionHolder conn, final DlmsDevice device, final SetKeysRequestDto keySet)
-            throws ProtocolAdapterException {
+            throws ProtocolAdapterException, FunctionalException {
 
         try {
             /*
@@ -267,7 +281,9 @@ public class ConfigurationService {
              * SetKeysRequestDto containing authentication and encryption key,
              * while execute deals with a single key only.
              */
+            keySet.setGeneratedKeys(false);
             this.replaceKeyCommandExecutor.executeBundleAction(conn, device, keySet);
+
         } catch (final ProtocolAdapterException e) {
             LOGGER.error("Unexpected exception during replaceKeys.", e);
             throw e;
@@ -298,5 +314,4 @@ public class ConfigurationService {
         return new GetConfigurationObjectResponseDto(
                 this.getConfigurationObjectCommandExecutor.execute(conn, device, null));
     }
-
 }
