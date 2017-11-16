@@ -53,6 +53,8 @@ class ImageTransfer {
     private static final ObisCode OBIS_CODE = new ObisCode("0.0.44.0.0.255");
     private static final ExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadExecutor();
 
+    private static final int MAX_CHARS_FOR_IMAGE_IDENTIFIER = 16;
+
     private final ImageTranferProperties properties;
     private final String imageIdentifier;
     private final byte[] imageData;
@@ -64,11 +66,22 @@ class ImageTransfer {
     public ImageTransfer(final DlmsConnectionHolder connector, final ImageTranferProperties properties,
             final String imageIdentifier, final byte[] imageData) throws ProtocolAdapterException {
         this.properties = properties;
-        this.imageIdentifier = imageIdentifier;
+        this.imageIdentifier = this.shortenImageIdentifierForDevice(imageIdentifier);
         this.imageData = imageData;
         this.imageBlockSizeReadFlag = false;
         this.connector = connector;
         this.imageTransferCosem = new CosemObjectAccessor(connector, OBIS_CODE, CLASS_ID);
+    }
+
+    private String shortenImageIdentifierForDevice(final String imageIdentifier) {
+        if (imageIdentifier == null) {
+            return "";
+        }
+        final int lastDotPosition = imageIdentifier.lastIndexOf('.');
+        if (lastDotPosition > 0) {
+            return imageIdentifier.substring(0, Math.min(MAX_CHARS_FOR_IMAGE_IDENTIFIER, lastDotPosition));
+        }
+        return imageIdentifier.substring(0, Math.min(MAX_CHARS_FOR_IMAGE_IDENTIFIER, imageIdentifier.length()));
     }
 
     /**
