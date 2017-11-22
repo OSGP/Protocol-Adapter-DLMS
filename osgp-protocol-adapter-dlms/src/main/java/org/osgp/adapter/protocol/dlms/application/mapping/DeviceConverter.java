@@ -31,6 +31,8 @@ public class DeviceConverter extends BidirectionalConverter<SmartMeteringDeviceD
         dlmsDevice.setHls3Active(source.isHLS3Active());
         dlmsDevice.setHls4Active(source.isHLS4Active());
         dlmsDevice.setHls5Active(source.isHLS5Active());
+        dlmsDevice.setMbusIdentificationNumber(source.getMbusIdentificationNumber());
+        dlmsDevice.setMbusManufacturerIdentification(source.getMbusManufacturerIdentification());
 
         if (source.getMasterKey() != null) {
             dlmsDevice.addSecurityKey(new SecurityKey(dlmsDevice, SecurityKeyType.E_METER_MASTER,
@@ -45,6 +47,11 @@ public class DeviceConverter extends BidirectionalConverter<SmartMeteringDeviceD
         if (source.getGlobalEncryptionUnicastKey() != null) {
             dlmsDevice.addSecurityKey(new SecurityKey(dlmsDevice, SecurityKeyType.E_METER_ENCRYPTION,
                     Hex.encodeHexString(source.getGlobalEncryptionUnicastKey()), source.getDeliveryDate(), null));
+        }
+
+        if (source.getMbusDefaultKey() != null) {
+            dlmsDevice.addSecurityKey(new SecurityKey(dlmsDevice, SecurityKeyType.G_METER_MASTER,
+                    Hex.encodeHexString(source.getMbusDefaultKey()), source.getDeliveryDate(), null));
         }
 
         return dlmsDevice;
