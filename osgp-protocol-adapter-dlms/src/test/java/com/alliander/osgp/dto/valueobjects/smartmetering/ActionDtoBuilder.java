@@ -89,9 +89,11 @@ public class ActionDtoBuilder {
         final List<CosemObjectDefinitionDto> objectDefinitions = new ArrayList<>();
         final SendDestinationAndMethodDto destinationAndMethod = new SendDestinationAndMethodDto(
                 TransportServiceTypeDto.TCP, "destination", MessageTypeDto.XML_ENCODED_X_DLMS_APDU);
-        final List<WindowElementDto> windowElemenents = new ArrayList<>();
-        final PushSetupAlarmDto pushAlarm = new PushSetupAlarmDto(cosemCode, objectDefinitions, destinationAndMethod,
-                windowElemenents, 1, 1, 1);
+        final List<WindowElementDto> windowElements = new ArrayList<>();
+        final PushSetupAlarmDto pushAlarm = (PushSetupAlarmDto) PushSetupAlarmDto.newBuilder().logicalName(cosemCode)
+                .pushObjectList(objectDefinitions).sendDestinationAndMethod(destinationAndMethod)
+                .communicationWindow(windowElements).randomisationStartInterval(1).numberOfRetries(1).repetitionDelay(1)
+                .build();
         final SetPushSetupAlarmRequestDto result = new SetPushSetupAlarmRequestDto(pushAlarm);
         return result;
     }
@@ -101,9 +103,11 @@ public class ActionDtoBuilder {
         final List<CosemObjectDefinitionDto> objectDefinitions = new ArrayList<>();
         final SendDestinationAndMethodDto destinationAndMethod = new SendDestinationAndMethodDto(
                 TransportServiceTypeDto.TCP, "destination", MessageTypeDto.XML_ENCODED_X_DLMS_APDU);
-        final List<WindowElementDto> windowElemenents = new ArrayList<>();
-        final PushSetupSmsDto setupSms = new PushSetupSmsDto(cosemCode, objectDefinitions, destinationAndMethod,
-                windowElemenents, 1, 1, 1);
+        final List<WindowElementDto> windowElements = new ArrayList<>();
+        final PushSetupSmsDto setupSms = (PushSetupSmsDto) PushSetupSmsDto.newBuilder().logicalName(cosemCode)
+                .pushObjectList(objectDefinitions).sendDestinationAndMethod(destinationAndMethod)
+                .communicationWindow(windowElements).randomisationStartInterval(1).numberOfRetries(1)
+                .repetitionDelay(1).build();
         final SetPushSetupSmsRequestDto result = new SetPushSetupSmsRequestDto(setupSms);
         return result;
     }
