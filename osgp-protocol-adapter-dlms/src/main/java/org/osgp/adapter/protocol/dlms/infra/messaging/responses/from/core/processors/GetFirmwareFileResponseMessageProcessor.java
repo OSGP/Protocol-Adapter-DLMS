@@ -16,7 +16,6 @@ import org.osgp.adapter.protocol.dlms.application.services.FirmwareService;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
 import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
-import org.osgp.adapter.protocol.dlms.infra.messaging.LoggingDlmsMessageListener;
 import org.osgp.adapter.protocol.dlms.infra.messaging.requests.to.core.OsgpRequestMessageType;
 import org.osgp.adapter.protocol.dlms.infra.messaging.responses.from.core.OsgpResponseMessageProcessor;
 import org.slf4j.Logger;
@@ -26,6 +25,7 @@ import org.springframework.stereotype.Component;
 
 import com.alliander.osgp.dto.valueobjects.DeviceFunctionDto;
 import com.alliander.osgp.dto.valueobjects.FirmwareFileDto;
+import com.alliander.osgp.shared.exceptionhandling.OsgpException;
 import com.alliander.osgp.shared.infra.jms.MessageMetadata;
 import com.alliander.osgp.shared.infra.jms.ResponseMessage;
 import com.alliander.osgp.shared.infra.jms.ResponseMessageResultType;
@@ -51,7 +51,8 @@ public class GetFirmwareFileResponseMessageProcessor extends OsgpResponseMessage
         DlmsDevice device = null;
 
         try {
-            // Get metadata from message and update message type to update firmware
+            // Get metadata from message and update message type to update
+            // firmware
             messageMetadata = new MessageMetadata.Builder(MessageMetadata.fromMessage(message))
                     .withMessageType(DeviceFunctionDto.UPDATE_FIRMWARE.name()).build();
 
@@ -61,16 +62,7 @@ public class GetFirmwareFileResponseMessageProcessor extends OsgpResponseMessage
                     messageMetadata.getDeviceIdentification(), messageMetadata.getOrganisationIdentification());
 
             Serializable response = null;
-            final LoggingDlmsMessageListener dlmsMessageListener;
-            if (device.isInDebugMode()) {
-                dlmsMessageListener = new LoggingDlmsMessageListener(device.getDeviceIdentification(),
-                        this.dlmsLogItemRequestMessageSender);
-                dlmsMessageListener.setMessageMetadata(messageMetadata);
-                dlmsMessageListener.setDescription("Create connection");
-            } else {
-                dlmsMessageListener = null;
-            }
-            conn = this.dlmsConnectionFactory.getConnection(device, dlmsMessageListener);
+            conn = this.createConnectionForDevice(device, messageMetadata);
             response = this.handleMessage(conn, device, message.getObject());
 
             // Send response
@@ -86,21 +78,13 @@ public class GetFirmwareFileResponseMessageProcessor extends OsgpResponseMessage
             this.sendResponseMessage(messageMetadata, ResponseMessageResultType.NOT_OK, exception,
                     this.responseMessageSender, message.getObject());
         } finally {
-            if (conn != null) {
-                LOGGER.info("Closing connection with {}", device.getDeviceIdentification());
-                conn.getDlmsMessageListener().setDescription("Close connection");
-                try {
-                    conn.close();
-                } catch (final Exception e) {
-                    LOGGER.error("Error while closing connection", e);
-                }
-            }
+            this.doConnectionPostProcessing(device, conn);
         }
     }
 
     @Override
     protected Serializable handleMessage(final DlmsConnectionHolder conn, final DlmsDevice device,
-            final Serializable response) throws ProtocolAdapterException {
+            final Serializable response) throws OsgpException {
 
         if (!(response instanceof ResponseMessage)) {
             throw new ProtocolAdapterException("Invalid response type, expected ResponseMessage object.");

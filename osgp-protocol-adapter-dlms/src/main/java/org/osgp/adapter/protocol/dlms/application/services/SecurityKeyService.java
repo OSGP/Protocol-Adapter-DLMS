@@ -7,10 +7,19 @@
  */
 package org.osgp.adapter.protocol.dlms.application.services;
 
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -255,15 +264,15 @@ public class SecurityKeyService {
 
         final DlmsDevice dlmsDevice = this.dlmsDeviceRepository.findByDeviceIdentification(deviceIdentification);
         if (dlmsDevice == null) {
-            LOGGER.warn("No DlmsDevice found for identification " + deviceIdentification + " - returning null as "
-                    + securityKeyType + " key.");
+            LOGGER.warn("No DlmsDevice found for identification {} - returning null as {} key.", deviceIdentification,
+                    securityKeyType);
             return null;
         }
 
         final SecurityKey securityKey = dlmsDevice.getValidSecurityKey(securityKeyType);
         if (securityKey == null) {
-            LOGGER.warn("No valid " + securityKeyType + " key found with device " + deviceIdentification
-                    + " - returning null.");
+            LOGGER.warn("No valid {} key found with device {} - returning null.", securityKeyType,
+                    deviceIdentification);
             return null;
         }
 
@@ -406,5 +415,76 @@ public class SecurityKeyService {
         } catch (final FunctionalException e) {
             throw new EncrypterException("Error encrypting freshly generated key", e);
         }
+    }
+
+    /**
+     * Encrypts a new M-Bus User key with the M-Bus Default key for use as M-Bus
+     * Client Setup transfer_key parameter.
+     * <p>
+     * Note that the specifics of the encryption of the M-Bus User key depend on
+     * the M-Bus version the devices support. This method should be appropriate
+     * for use with DSMR 4 M-Bus devices.
+     * <p>
+     * The encryption is performed by applying an AES/CBC/NoPadding cipher
+     * initialized for encryption with the given mbusDefaultKey and an
+     * initialization vector of 16 zero-bytes to the given mbusUserKey.
+     *
+     * @param mbusDefaultKey
+     * @param mbusUserKey
+     * @return the properly wrapped User key for a DSMR 4 M-Bus User key change.
+     */
+    public byte[] encryptMbusUserKey(final byte[] mbusDefaultKey, final byte[] mbusUserKey)
+            throws ProtocolAdapterException {
+
+        final Key secretkeySpec = new SecretKeySpec(mbusDefaultKey, "AES");
+
+        try {
+
+            final Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+
+            final IvParameterSpec params = new IvParameterSpec(new byte[16]);
+            cipher.init(Cipher.ENCRYPT_MODE, secretkeySpec, params);
+
+            return cipher.doFinal(mbusUserKey);
+
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
+                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+            final String message = "Error encrypting M-Bus User key with M-Bus Default key for transfer.";
+            LOGGER.error(message, e);
+            throw new ProtocolAdapterException(message);
+        }
+    }
+
+    /**
+     * Increments the invocation counter for the {@link SecurityKey} of the
+     * given {@code keyType} with the device with the given
+     * {@code deviceIdentification} based on a number of sent messages with a
+     * DLMS client.
+     *
+     * @param deviceIdentification
+     * @param keyType
+     * @param numberOfSentMessages
+     */
+    public void incrementInvocationCounter(final String deviceIdentification, final SecurityKeyType keyType,
+            final int numberOfSentMessages) {
+
+        final DlmsDevice dlmsDevice = this.dlmsDeviceRepository.findByDeviceIdentification(deviceIdentification);
+        if (dlmsDevice == null) {
+            LOGGER.error("No DlmsDevice found for identification {} - unable to update invocation counter for {} key.",
+                    deviceIdentification, keyType);
+            return;
+        }
+
+        final SecurityKey securityKey = dlmsDevice.getValidSecurityKey(keyType);
+        if (securityKey == null) {
+            LOGGER.error("No valid {} key found with device {} - unable to update invocation counter.", keyType,
+                    deviceIdentification);
+            return;
+        }
+
+        final int newInvocationCounter = securityKey.getInvocationCounter() + numberOfSentMessages;
+        securityKey.setInvocationCounter(newInvocationCounter);
+
+        this.dlmsDeviceRepository.save(dlmsDevice);
     }
 }
