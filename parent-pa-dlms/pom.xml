@@ -4,11 +4,11 @@
 
   <artifactId>parent-pa-dlms</artifactId>
   <groupId>org.osgp</groupId>
-  <version>4.23.0</version>
+  <version>4.24.0</version>
   <packaging>pom</packaging>
   <name>parent-pa-dlms</name>
-  <!-- Description, Organization, Licences, URL and Distribution Management elements are needed for the maven-jxr-plugin 
-    to generate a maven site -->
+  <!-- Description, Organization, Licences, URL and Distribution Management 
+    elements are needed for the maven-jxr-plugin to generate a maven site -->
   <description>Parent module.</description>
   <organization>
     <name>OSGP</name>
@@ -47,10 +47,10 @@
 
   <properties>
     <module.baseUri>${project.baseUri}/../</module.baseUri>
-    <osgp.version>4.23.0</osgp.version>
-    <osgp.dlms.version>4.23.0</osgp.dlms.version>
-    <osgp.shared.version>4.23.0</osgp.shared.version>
-    <osgp.jasper-interface.version>4.23.0</osgp.jasper-interface.version>
+    <osgp.version>4.24.0</osgp.version>
+    <osgp.dlms.version>4.24.0</osgp.dlms.version>
+    <osgp.shared.version>4.24.0</osgp.shared.version>
+    <osgp.jasper-interface.version>4.24.0</osgp.jasper-interface.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <spring.version>4.3.5.RELEASE</spring.version>
@@ -81,7 +81,7 @@
     <apache.commons.schema>2.0.3</apache.commons.schema>
     <maven.compiler.plugin.version>3.2</maven.compiler.plugin.version>
     <netty.version>3.9.4.Final</netty.version>
-    <openmuc.jdlms.version>1.5.1</openmuc.jdlms.version>
+    <openmuc.jdlms.version>1.5.3</openmuc.jdlms.version>
     <javax.inject.version>1</javax.inject.version>
     <license.maven.plugin>2.11</license.maven.plugin>
   </properties>
@@ -115,9 +115,9 @@
         <groupId>org.openmuc</groupId>
         <artifactId>jdlms</artifactId>
         <version>${openmuc.jdlms.version}</version>
-	<exclusions>
+        <exclusions>
           <exclusion>
-            <!-- Exclude to ensure compatibility with (older) 1.51 users-->
+            <!-- Exclude to ensure compatibility with (older) 1.51 users -->
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
           </exclusion>

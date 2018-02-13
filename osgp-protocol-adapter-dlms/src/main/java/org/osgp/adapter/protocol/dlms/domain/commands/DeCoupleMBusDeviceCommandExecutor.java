@@ -8,6 +8,7 @@
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
 import org.openmuc.jdlms.AttributeAddress;
+import org.openmuc.jdlms.MethodResultCode;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.openmuc.jdlms.interfaceclass.InterfaceClass;
@@ -30,8 +31,8 @@ public class DeCoupleMBusDeviceCommandExecutor
 
     private static final int CLASS_ID = InterfaceClass.MBUS_CLIENT.id();
     /**
-     * The ObisCode for the M-Bus Client Setup exists for a number of channels.
-     * DSMR specifies these M-Bus Client Setup channels as values from 1..4.
+     * The ObisCode for the M-Bus Client Setup exists for a number of channels. DSMR
+     * specifies these M-Bus Client Setup channels as values from 1..4.
      */
     private static final String OBIS_CODE_TEMPLATE = "0.%d.24.1.0.255";
 
@@ -49,7 +50,29 @@ public class DeCoupleMBusDeviceCommandExecutor
 
         LOGGER.debug("DeCouple mbus device from gateway device");
 
+        final CosemObjectAccessor mBusSetup = new CosemObjectAccessor(conn, this.getObisCode(decoupleMbusDto),
+                CLASS_ID);
+
+        // in blue book version 10, the parameter is of type integer
+        DataObject parameter = DataObject.newInteger8Data((byte) 0);
+        conn.getDlmsMessageListener().setDescription("Call slave deinstall method");
+        MethodResultCode slaveDeinstall = mBusSetup.callMethod(Method.SLAVE_DEINSTALL, parameter);
+        if (slaveDeinstall == MethodResultCode.TYPE_UNMATCHED) {
+            // in blue book version 12, the parameter is of type unsigned, we
+            // will try again with that type
+            parameter = DataObject.newUInteger8Data((byte) 0);
+            slaveDeinstall = mBusSetup.callMethod(Method.SLAVE_DEINSTALL, parameter);
+        }
+        if (slaveDeinstall != MethodResultCode.SUCCESS) {
+            LOGGER.warn("Slave deinstall was not successfull on device {} for mbus device {}",
+                    device.getDeviceIdentification(), decoupleMbusDto.getmBusDeviceIdentification());
+        }
+
         return this.writeUpdatedMbus(conn, decoupleMbusDto);
+    }
+
+    private ObisCode getObisCode(final DeCoupleMbusDeviceDto decoupleMbusDto) {
+        return new ObisCode(String.format(OBIS_CODE_TEMPLATE, decoupleMbusDto.getChannel()));
     }
 
     private DeCoupleMbusDeviceResponseDto writeUpdatedMbus(final DlmsConnectionHolder conn,
@@ -80,11 +103,26 @@ public class DeCoupleMBusDeviceCommandExecutor
 
     private DataObjectAttrExecutor getMbusAttributeExecutor(final DeCoupleMbusDeviceDto deCoupleMbusDeviceDto,
             final MbusClientAttribute attribute, final DataObject value) {
-        final ObisCode obiscode = new ObisCode(String.format(OBIS_CODE_TEMPLATE, deCoupleMbusDeviceDto.getChannel()));
-        final AttributeAddress attributeAddress = new AttributeAddress(CLASS_ID, obiscode,
-                attribute.attributeId());
+        final ObisCode obiscode = this.getObisCode(deCoupleMbusDeviceDto);
+        final AttributeAddress attributeAddress = new AttributeAddress(CLASS_ID, obiscode, attribute.attributeId());
 
         return new DataObjectAttrExecutor(attribute.attributeName(), attributeAddress, value, CLASS_ID, obiscode,
                 attribute.attributeId());
     }
+
+    private enum Method implements CosemObjectMethod {
+        SLAVE_DEINSTALL(2);
+
+        private final int methodId;
+
+        private Method(final int methodId) {
+            this.methodId = methodId;
+        }
+
+        @Override
+        public int getValue() {
+            return this.methodId;
+        }
+    }
+
 }
