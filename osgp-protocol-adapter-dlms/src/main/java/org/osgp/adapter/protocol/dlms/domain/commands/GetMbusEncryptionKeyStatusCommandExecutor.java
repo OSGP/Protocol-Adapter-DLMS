@@ -7,12 +7,10 @@
  */
 package org.osgp.adapter.protocol.dlms.domain.commands;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.openmuc.jdlms.AttributeAddress;
-import org.openmuc.jdlms.GetResult;
 import org.openmuc.jdlms.ObisCode;
 import org.openmuc.jdlms.datatypes.DataObject;
 import org.openmuc.jdlms.interfaceclass.InterfaceClass;
@@ -20,7 +18,6 @@ import org.openmuc.jdlms.interfaceclass.attribute.MbusClientAttribute;
 import org.osgp.adapter.protocol.dlms.domain.entities.DlmsDevice;
 import org.osgp.adapter.protocol.dlms.domain.factories.DlmsConnectionHolder;
 import org.osgp.adapter.protocol.dlms.domain.valueobjects.EncryptionKeyStatusType;
-import org.osgp.adapter.protocol.dlms.exceptions.ConnectionException;
 import org.osgp.adapter.protocol.dlms.exceptions.ProtocolAdapterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,36 +52,30 @@ public class GetMbusEncryptionKeyStatusCommandExecutor
     public GetMbusEncryptionKeyStatusResponseDto execute(final DlmsConnectionHolder conn, final DlmsDevice device,
             final GetMbusEncryptionKeyStatusRequestDto request) throws ProtocolAdapterException {
 
-        final ObisCode obisCode = OBIS_CODES.get(request.getChannel());
+        final EncryptionKeyStatusTypeDto encryptionKeyStatusType = this
+                .getEncryptionKeyStatusTypeDto(request.getChannel(), conn);
+        return new GetMbusEncryptionKeyStatusResponseDto(request.getMbusDeviceIdentification(),
+                encryptionKeyStatusType);
+    }
+
+    public EncryptionKeyStatusTypeDto getEncryptionKeyStatusTypeDto(final short channel,
+            final DlmsConnectionHolder conn) throws ProtocolAdapterException {
+
+        final ObisCode obisCode = OBIS_CODES.get(channel);
 
         final AttributeAddress getParameter = new AttributeAddress(CLASS_ID, obisCode, ATTRIBUTE_ID);
 
-        conn.getDlmsMessageListener().setDescription("GetMbusEncryptionKeyStatus, retrieve attribute: "
+        conn.getDlmsMessageListener().setDescription("GetMbusEncryptionKeyStatusByChannel, retrieve attribute: "
                 + JdlmsObjectToStringUtil.describeAttributes(getParameter));
 
         LOGGER.info(
                 "Retrieving current M-Bus encryption key status by issuing get request for class id: {}, obis code: {}, attribute id: {}",
                 CLASS_ID, obisCode, ATTRIBUTE_ID);
 
-        GetResult getResult = null;
-        try {
-            getResult = conn.getConnection().get(getParameter);
-        } catch (final IOException e) {
-            throw new ConnectionException(e);
-        }
+        final DataObject dataObject = this.getValidatedResultData(conn, getParameter);
 
-        if (getResult == null) {
-            throw new ProtocolAdapterException("No GetResult received while retrieving M-Bus encryption key status.");
-        }
-
-        final DataObject dataObject = getResult.getResultData();
-        if (!dataObject.isNumber()) {
-            throw new ProtocolAdapterException("Received unexpected result data.");
-        }
-
-        final EncryptionKeyStatusTypeDto encryptionKeyStatusType = EncryptionKeyStatusTypeDto
+        return EncryptionKeyStatusTypeDto
                 .valueOf(EncryptionKeyStatusType.fromValue((Integer) dataObject.getValue()).name());
-        return new GetMbusEncryptionKeyStatusResponseDto(request.getMbusDeviceIdentification(),
-                encryptionKeyStatusType);
     }
+
 }

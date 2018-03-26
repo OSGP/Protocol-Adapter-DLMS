@@ -4,7 +4,7 @@
 
   <artifactId>parent-pa-dlms</artifactId>
   <groupId>org.osgp</groupId>
-  <version>4.25.0</version>
+  <version>4.26.0</version>
   <packaging>pom</packaging>
   <name>parent-pa-dlms</name>
   <!-- Description, Organization, Licences, URL and Distribution Management 
@@ -23,20 +23,6 @@
   <!-- URL is passed in as a maven argument: -Dmaven.site.url=http://my/url/for/the/site -->
   <url>${maven.site.url}</url>
   <distributionManagement>
-    <repository>
-      <uniqueVersion>false</uniqueVersion>
-      <id>smartsociety-releases</id>
-      <name>Smart Society Release Repo</name>
-      <url>http://buildserver01.cloudapp.net:8081/nexus/content/repositories/smartsociety-releases/</url>
-      <layout>default</layout>
-    </repository>
-    <snapshotRepository>
-      <uniqueVersion>false</uniqueVersion>
-      <id>smartsociety-snapshots</id>
-      <name>Smart Society Development Repo</name>
-      <url>http://buildserver01.cloudapp.net:8081/nexus/content/repositories/smartsociety-snapshots/</url>
-      <layout>default</layout>
-    </snapshotRepository>
     <site>
       <id>pa-dlms</id>
       <name>pa-dlms</name>
@@ -47,10 +33,10 @@
 
   <properties>
     <module.baseUri>${project.baseUri}/../</module.baseUri>
-    <osgp.version>4.25.0</osgp.version>
-    <osgp.dlms.version>4.25.0</osgp.dlms.version>
-    <osgp.shared.version>4.25.0</osgp.shared.version>
-    <osgp.jasper-interface.version>4.25.0</osgp.jasper-interface.version>
+    <osgp.version>4.26.0</osgp.version>
+    <osgp.dlms.version>4.26.0</osgp.dlms.version>
+    <osgp.shared.version>4.26.0</osgp.shared.version>
+    <osgp.jasper-interface.version>4.26.0</osgp.jasper-interface.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <spring.version>4.3.5.RELEASE</spring.version>
