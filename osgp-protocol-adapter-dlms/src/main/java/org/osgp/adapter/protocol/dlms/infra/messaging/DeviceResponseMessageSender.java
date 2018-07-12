@@ -118,7 +118,6 @@ public class DeviceResponseMessageSender implements ResponseMessageSender {
     }
 
     private void sendMessage(final ProtocolResponseMessage responseMessage) {
-        this.dlmsResponsesJmsTemplate.setPriority(responseMessage.getMessagePriority());
         this.dlmsResponsesJmsTemplate.send(new ProtocolResponseMessageCreator(responseMessage));
     }
 }
