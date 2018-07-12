@@ -42,6 +42,7 @@ public class DeviceResponseMessageSender implements ResponseMessageSender {
             objectMessage.setStringProperty(Constants.DOMAIN, this.responseMessage.getDomain());
             objectMessage.setStringProperty(Constants.DOMAIN_VERSION, this.responseMessage.getDomainVersion());
             objectMessage.setJMSType(this.responseMessage.getMessageType());
+            objectMessage.setJMSPriority(this.responseMessage.getMessagePriority());
             objectMessage.setStringProperty(Constants.ORGANISATION_IDENTIFICATION,
                     this.responseMessage.getOrganisationIdentification());
             objectMessage.setStringProperty(Constants.DEVICE_IDENTIFICATION,
